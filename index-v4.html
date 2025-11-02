@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Local Video Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+        }
+        #fileInput {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+            cursor: pointer;
+            margin-bottom: 20px; /* Added spacing */
+        }
+        #video-info {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 10px;
+            min-height: 20px; /* Reserve space */
+        }
+        #video-container {
+            margin-top: 5px;
+            width: 90%; 
+            max-width: 800px; 
+            border: 3px solid #ccc;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            background-color: #000; 
+            border-radius: 8px;
+            overflow: hidden; 
+            /* Added transition for the loading state effect */
+            transition: opacity 0.3s ease-in-out;
+        }
+        #video-container.loading {
+            opacity: 0.5; /* Dim the player while loading */
+        }
+        #videoPlayer {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🎬 Local Video File Player</h1>
+
+    <input type="file" id="fileInput" accept="video/*">
+    
+    <div id="video-info">No video loaded.</div>
+
+    <div id="video-container">
+        <video id="videoPlayer" controls playsinline>
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoContainer = document.getElementById('video-container');
+        const videoInfo = document.getElementById('video-info');
+
+        let currentVideoURL = null;
+        
+        function cleanupPreviousURL() {
+            if (currentVideoURL) {
+                URL.revokeObjectURL(currentVideoURL);
+                currentVideoURL = null; 
+            }
+        }
+
+        // --- Improvisation 2: Loading State Handlers ---
+
+        function setLoading(isLoading) {
+            if (isLoading) {
+                videoContainer.classList.add('loading');
+            } else {
+                videoContainer.classList.remove('loading');
+            }
+        }
+
+        videoPlayer.addEventListener('loadedmetadata', () => {
+            setLoading(false);
+        });
+
+        videoPlayer.addEventListener('waiting', () => {
+            setLoading(true);
+        });
+
+        videoPlayer.addEventListener('playing', () => {
+            setLoading(false);
+        });
+
+
+        // --- File Input Logic ---
+
+        fileInput.addEventListener('change', function(event) {
+            cleanupPreviousURL();
+            const file = event.target.files[0];
+
+            if (file) {
+                setLoading(true); // Start loading state
+                const videoURL = URL.createObjectURL(file);
+                currentVideoURL = videoURL;
+                videoPlayer.src = videoURL;
+                videoPlayer.load();
+                
+                // Improvisation 1: Display File Name
+                videoInfo.textContent = `File: ${file.name}`;
+
+                console.log(`Video loaded: ${file.name}`);
+            } else {
+                videoPlayer.src = "";
+                videoPlayer.load();
+                videoInfo.textContent = "No video loaded.";
+                setLoading(false);
+                console.log("File selection cancelled.");
+            }
+        });
+
+        // --- Improvisation 3: Keyboard Controls ---
+
+        document.addEventListener('keydown', function(event) {
+            // Only apply controls if a video is loaded and the video element has focus
+            if (!videoPlayer.src) return;
+
+            const key = event.code;
+
+            if (key === 'Space') {
+                event.preventDefault(); // Prevent page scroll
+                if (videoPlayer.paused) {
+                    videoPlayer.play();
+                } else {
+                    videoPlayer.pause();
+                }
+            } 
+            else if (key === 'ArrowRight') {
+                videoPlayer.currentTime += 5; // Seek forward 5 seconds
+            }
+            else if (key === 'ArrowLeft') {
+                videoPlayer.currentTime -= 5; // Seek backward 5 seconds
+            }
+        });
+    </script>
+
+</body>
+</html>
