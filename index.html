@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Local Video Player</title>
+    <title>Video.js Local Video Player</title>
+    
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
+    
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,53 +25,67 @@
             border-radius: 5px;
             background-color: #fff;
             cursor: pointer;
-            margin-bottom: 20px; /* Added spacing */
+            margin-bottom: 20px;
         }
         #video-info {
             font-size: 1.1em;
             color: #555;
             margin-bottom: 10px;
-            min-height: 20px; /* Reserve space */
+            min-height: 20px;
         }
         #video-container {
             margin-top: 5px;
             width: 90%; 
             max-width: 800px; 
-            border: 3px solid #ccc;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            /* Note: Video.js handles styling, but we keep the wrapper for context */
+            /* Removed custom border/box-shadow as Video.js has its own look */
             background-color: #000; 
             border-radius: 8px;
             overflow: hidden; 
             /* Added transition for the loading state effect */
             transition: opacity 0.3s ease-in-out;
         }
-        #video-container.loading {
-            opacity: 0.5; /* Dim the player while loading */
-        }
-        #videoPlayer {
-            width: 100%;
-            height: auto;
-            display: block;
+        /* Video.js provides its own loading spinner, so we can simplify the custom loading state */
+        /* You might want to remove this CSS block entirely and rely on Video.js's spinner */
+        /* #video-container.loading {
+            opacity: 0.5; 
+        } */
+        
+        /* Ensure the Video.js player fills the container */
+        .video-js {
+            width: 100% !important;
+            height: auto !important;
         }
     </style>
 </head>
 <body>
 
-    <h1>🎬 Local Video File Player</h1>
+    <h1>🎬 Local Video File Player (Video.js)</h1>
 
     <input type="file" id="fileInput" accept="video/*">
     
     <div id="video-info">No video loaded.</div>
 
     <div id="video-container">
-        <video id="videoPlayer" controls playsinline>
+        <video 
+            id="videoPlayer" 
+            class="video-js vjs-default-skin vjs-big-play-centered" 
+            controls 
+            playsinline 
+            preload="auto"
+            data-setup="{}"
+        >
             Your browser does not support the video tag.
         </video>
     </div>
 
+    <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+
     <script>
         const fileInput = document.getElementById('fileInput');
-        const videoPlayer = document.getElementById('videoPlayer');
+        // Get the Video.js player object instead of the raw HTML element
+        const player = videojs('videoPlayer'); 
+        
         const videoContainer = document.getElementById('video-container');
         const videoInfo = document.getElementById('video-info');
 
@@ -81,8 +98,13 @@
             }
         }
 
-        // --- Improvisation 2: Loading State Handlers ---
+        // --- Video.js Loading State Handlers ---
+        // Video.js handles its own loading states and controls, 
+        // but we'll keep the file display logic.
 
+        /* // The original loading state handlers are generally not needed as Video.js has its own UI.
+        // I've commented them out below, but you can re-enable if you still want the custom dim effect.
+        
         function setLoading(isLoading) {
             if (isLoading) {
                 videoContainer.classList.add('loading');
@@ -91,68 +113,65 @@
             }
         }
 
-        videoPlayer.addEventListener('loadedmetadata', () => {
+        player.on('loadedmetadata', () => {
             setLoading(false);
         });
 
-        videoPlayer.addEventListener('waiting', () => {
+        player.on('waiting', () => {
             setLoading(true);
         });
 
-        videoPlayer.addEventListener('playing', () => {
+        player.on('playing', () => {
             setLoading(false);
         });
+        */
 
 
-        // --- File Input Logic ---
+        // --- File Input Logic (Adapted for Video.js) ---
 
         fileInput.addEventListener('change', function(event) {
             cleanupPreviousURL();
             const file = event.target.files[0];
 
             if (file) {
-                setLoading(true); // Start loading state
+                // setLoading(true); // Can use Video.js's built-in loading spinner
                 const videoURL = URL.createObjectURL(file);
                 currentVideoURL = videoURL;
-                videoPlayer.src = videoURL;
-                videoPlayer.load();
+                
+                // Use the Video.js player methods
+                player.src({
+                    src: videoURL,
+                    type: file.type || 'video/mp4' // Use file type if available, default to 'video/mp4'
+                });
+                player.load();
                 
                 // Improvisation 1: Display File Name
                 videoInfo.textContent = `File: ${file.name}`;
 
                 console.log(`Video loaded: ${file.name}`);
             } else {
-                videoPlayer.src = "";
-                videoPlayer.load();
+                // Clear the player and info
+                player.reset(); 
                 videoInfo.textContent = "No video loaded.";
-                setLoading(false);
+                // setLoading(false);
                 console.log("File selection cancelled.");
             }
         });
 
-        // --- Improvisation 3: Keyboard Controls ---
-
+        // --- Keyboard Controls (Adapted for Video.js) ---
+        // Video.js handles standard keyboard controls like space for play/pause 
+        // and arrow keys for seeking by default. We can remove the custom logic 
+        // unless specific, non-standard behavior is required.
+        /*
         document.addEventListener('keydown', function(event) {
-            // Only apply controls if a video is loaded and the video element has focus
-            if (!videoPlayer.src) return;
-
-            const key = event.code;
-
-            if (key === 'Space') {
-                event.preventDefault(); // Prevent page scroll
-                if (videoPlayer.paused) {
-                    videoPlayer.play();
-                } else {
-                    videoPlayer.pause();
-                }
-            } 
-            else if (key === 'ArrowRight') {
-                videoPlayer.currentTime += 5; // Seek forward 5 seconds
-            }
-            else if (key === 'ArrowLeft') {
-                videoPlayer.currentTime -= 5; // Seek backward 5 seconds
-            }
+            // Video.js handles play/pause (Space) and seeking (ArrowRight/Left) 
+            // when the player is focused, so this custom logic is generally redundant.
         });
+        */
+        
+        // Optional: Ensure the Video.js player element is focusable for its own keyboard controls
+        player.el().setAttribute('tabindex', '0');
+        
     </script>
 
 </body>
