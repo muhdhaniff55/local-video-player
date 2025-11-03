@@ -34,7 +34,7 @@
             min-height: 20px;
         }
         
-        /* 🛠️ FIX: Responsive Container CSS */
+        /* Responsive Container CSS (16:9 Aspect Ratio) */
         #video-container {
             margin-top: 5px;
             width: 90%; 
@@ -42,21 +42,25 @@
             background-color: #000; 
             border-radius: 8px;
             overflow: hidden; 
-            transition: opacity 0.3s ease-in-out;
-            
-            /* Crucial for responsive Video.js sizing */
             position: relative; 
-            padding-top: 56.25%; /* 16:9 Aspect Ratio (9/16 * 100) */
-            height: 0; /* Ensures padding-top controls height */
+            padding-top: 56.25%; /* 9/16 * 100 */
+            height: 0; 
         }
         
-        /* 🛠️ FIX: Video.js Player CSS */
+        /* Video.js Player Sizing */
         .video-js {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100% !important; /* Force it to take full width */
-            height: 100% !important; /* Force it to take full height */
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* 🌟 FIX: Loading Indicator CSS 🌟 */
+        /* By default, Video.js hides the spinner. We show it when the 'loading' class is added. */
+        #video-container.loading .vjs-loading-spinner {
+            display: block; 
+            /* You can customize the spinner size/color here if needed */
         }
     </style>
 </head>
@@ -85,26 +89,86 @@
 
     <script>
         const fileInput = document.getElementById('fileInput');
-        // Initialize the Video.js player object
         const player = videojs('videoPlayer'); 
-        
         const videoInfo = document.getElementById('video-info');
+        const videoContainer = document.getElementById('video-container'); // Get the container
 
         let currentVideoURL = null;
         
+        // Function to release memory from the previous video file
         function cleanupPreviousURL() {
             if (currentVideoURL) {
                 URL.revokeObjectURL(currentVideoURL);
                 currentVideoURL = null; 
             }
         }
+        
+        // --- Loading State Management ---
+        function setLoading(isLoading) {
+            if (isLoading) {
+                videoContainer.classList.add('loading');
+            } else {
+                videoContainer.classList.remove('loading');
+            }
+        }
 
-        // --- File Input Logic (Adapted for Video.js) ---
+        // --- Video.js Event Listeners for User Feedback ---
+        player.on('loadedmetadata', () => {
+            setLoading(false); // Video source loaded
+        });
 
+        player.on('waiting', () => {
+            setLoading(true); // Buffering/stalling
+        });
+
+        player.on('playing', () => {
+            setLoading(false); // Playback started/resumed
+        });
+
+        player.on('error', () => {
+            setLoading(false);
+            videoInfo.textContent = "Error: Cannot play the selected video file. Check file format.";
+            console.error("Video.js Player Error:", player.error());
+        });
+        
+        // --- File Input Logic ---
         fileInput.addEventListener('change', function(event) {
             cleanupPreviousURL();
             const file = event.target.files[0];
 
+            if (file) {
+                setLoading(true); // Show loading spinner immediately upon file selection
+                
+                // 1. Create a temporary URL for the browser to read the local file
+                const videoURL = URL.createObjectURL(file);
+                currentVideoURL = videoURL;
+                
+                // 2. Use the Video.js player methods to set the source
+                player.src({
+                    src: videoURL,
+                    type: file.type || 'video/mp4' // Use detected type or default
+                });
+                player.load();
+                
+                // 3. Update the info message
+                videoInfo.textContent = `File: ${file.name}`;
+                console.log(`Video loaded: ${file.name}`);
+            } else {
+                // File selection cancelled
+                player.reset(); 
+                videoInfo.textContent = "No video loaded.";
+                setLoading(false);
+                console.log("File selection cancelled.");
+            }
+        });
+        
+        // Optional: Ensure the Video.js player element is focusable for its own keyboard controls
+        player.el().setAttribute('tabindex', '0');
+        
+    </script>
+
+</body>
+</html>
             if (file) {
                 const videoURL = URL.createObjectURL(file);
                 currentVideoURL = videoURL;
