@@ -33,28 +33,30 @@
             margin-bottom: 10px;
             min-height: 20px;
         }
+        
+        /* 🛠️ FIX: Responsive Container CSS */
         #video-container {
             margin-top: 5px;
             width: 90%; 
             max-width: 800px; 
-            /* Note: Video.js handles styling, but we keep the wrapper for context */
-            /* Removed custom border/box-shadow as Video.js has its own look */
             background-color: #000; 
             border-radius: 8px;
             overflow: hidden; 
-            /* Added transition for the loading state effect */
             transition: opacity 0.3s ease-in-out;
+            
+            /* Crucial for responsive Video.js sizing */
+            position: relative; 
+            padding-top: 56.25%; /* 16:9 Aspect Ratio (9/16 * 100) */
+            height: 0; /* Ensures padding-top controls height */
         }
-        /* Video.js provides its own loading spinner, so we can simplify the custom loading state */
-        /* You might want to remove this CSS block entirely and rely on Video.js's spinner */
-        /* #video-container.loading {
-            opacity: 0.5; 
-        } */
         
-        /* Ensure the Video.js player fills the container */
+        /* 🛠️ FIX: Video.js Player CSS */
         .video-js {
-            width: 100% !important;
-            height: auto !important;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important; /* Force it to take full width */
+            height: 100% !important; /* Force it to take full height */
         }
     </style>
 </head>
@@ -73,7 +75,7 @@
             controls 
             playsinline 
             preload="auto"
-            data-setup="{}"
+            data-setup='{}'
         >
             Your browser does not support the video tag.
         </video>
@@ -83,10 +85,9 @@
 
     <script>
         const fileInput = document.getElementById('fileInput');
-        // Get the Video.js player object instead of the raw HTML element
+        // Initialize the Video.js player object
         const player = videojs('videoPlayer'); 
         
-        const videoContainer = document.getElementById('video-container');
         const videoInfo = document.getElementById('video-info');
 
         let currentVideoURL = null;
@@ -98,14 +99,42 @@
             }
         }
 
-        // --- Video.js Loading State Handlers ---
-        // Video.js handles its own loading states and controls, 
-        // but we'll keep the file display logic.
+        // --- File Input Logic (Adapted for Video.js) ---
 
-        /* // The original loading state handlers are generally not needed as Video.js has its own UI.
-        // I've commented them out below, but you can re-enable if you still want the custom dim effect.
+        fileInput.addEventListener('change', function(event) {
+            cleanupPreviousURL();
+            const file = event.target.files[0];
+
+            if (file) {
+                const videoURL = URL.createObjectURL(file);
+                currentVideoURL = videoURL;
+                
+                // Use the Video.js player methods to set the source
+                player.src({
+                    src: videoURL,
+                    type: file.type || 'video/mp4' // Use file type if available
+                });
+                player.load();
+                
+                // Display File Name
+                videoInfo.textContent = `File: ${file.name}`;
+
+                console.log(`Video loaded: ${file.name}`);
+            } else {
+                // Clear the player and info
+                player.reset(); 
+                videoInfo.textContent = "No video loaded.";
+                console.log("File selection cancelled.");
+            }
+        });
         
-        function setLoading(isLoading) {
+        // Optional: Make the Video.js player element focusable for its own keyboard controls
+        player.el().setAttribute('tabindex', '0');
+        
+    </script>
+
+</body>
+</html>        function setLoading(isLoading) {
             if (isLoading) {
                 videoContainer.classList.add('loading');
             } else {
