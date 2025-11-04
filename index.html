@@ -56,11 +56,10 @@
             height: 100% !important;
         }
 
-        /* 🌟 FIX: Loading Indicator CSS 🌟 */
-        /* By default, Video.js hides the spinner. We show it when the 'loading' class is added. */
+        /* Loading Indicator CSS */
+        /* Shows the built-in spinner when the 'loading' class is manually added */
         #video-container.loading .vjs-loading-spinner {
             display: block; 
-            /* You can customize the spinner size/color here if needed */
         }
     </style>
 </head>
@@ -91,11 +90,11 @@
         const fileInput = document.getElementById('fileInput');
         const player = videojs('videoPlayer'); 
         const videoInfo = document.getElementById('video-info');
-        const videoContainer = document.getElementById('video-container'); // Get the container
+        const videoContainer = document.getElementById('video-container');
 
         let currentVideoURL = null;
         
-        // Function to release memory from the previous video file
+        // Function to release memory from the previous video file (prevents memory leaks)
         function cleanupPreviousURL() {
             if (currentVideoURL) {
                 URL.revokeObjectURL(currentVideoURL);
@@ -161,106 +160,6 @@
                 console.log("File selection cancelled.");
             }
         });
-        
-        // Optional: Ensure the Video.js player element is focusable for its own keyboard controls
-        player.el().setAttribute('tabindex', '0');
-        
-    </script>
-
-</body>
-</html>
-            if (file) {
-                const videoURL = URL.createObjectURL(file);
-                currentVideoURL = videoURL;
-                
-                // Use the Video.js player methods to set the source
-                player.src({
-                    src: videoURL,
-                    type: file.type || 'video/mp4' // Use file type if available
-                });
-                player.load();
-                
-                // Display File Name
-                videoInfo.textContent = `File: ${file.name}`;
-
-                console.log(`Video loaded: ${file.name}`);
-            } else {
-                // Clear the player and info
-                player.reset(); 
-                videoInfo.textContent = "No video loaded.";
-                console.log("File selection cancelled.");
-            }
-        });
-        
-        // Optional: Make the Video.js player element focusable for its own keyboard controls
-        player.el().setAttribute('tabindex', '0');
-        
-    </script>
-
-</body>
-</html>        function setLoading(isLoading) {
-            if (isLoading) {
-                videoContainer.classList.add('loading');
-            } else {
-                videoContainer.classList.remove('loading');
-            }
-        }
-
-        player.on('loadedmetadata', () => {
-            setLoading(false);
-        });
-
-        player.on('waiting', () => {
-            setLoading(true);
-        });
-
-        player.on('playing', () => {
-            setLoading(false);
-        });
-        */
-
-
-        // --- File Input Logic (Adapted for Video.js) ---
-
-        fileInput.addEventListener('change', function(event) {
-            cleanupPreviousURL();
-            const file = event.target.files[0];
-
-            if (file) {
-                // setLoading(true); // Can use Video.js's built-in loading spinner
-                const videoURL = URL.createObjectURL(file);
-                currentVideoURL = videoURL;
-                
-                // Use the Video.js player methods
-                player.src({
-                    src: videoURL,
-                    type: file.type || 'video/mp4' // Use file type if available, default to 'video/mp4'
-                });
-                player.load();
-                
-                // Improvisation 1: Display File Name
-                videoInfo.textContent = `File: ${file.name}`;
-
-                console.log(`Video loaded: ${file.name}`);
-            } else {
-                // Clear the player and info
-                player.reset(); 
-                videoInfo.textContent = "No video loaded.";
-                // setLoading(false);
-                console.log("File selection cancelled.");
-            }
-        });
-
-        // --- Keyboard Controls (Adapted for Video.js) ---
-        // Video.js handles standard keyboard controls like space for play/pause 
-        // and arrow keys for seeking by default. We can remove the custom logic 
-        // unless specific, non-standard behavior is required.
-        /*
-        document.addEventListener('keydown', function(event) {
-            // Video.js handles play/pause (Space) and seeking (ArrowRight/Left) 
-            // when the player is focused, so this custom logic is generally redundant.
-        });
-        */
         
         // Optional: Ensure the Video.js player element is focusable for its own keyboard controls
         player.el().setAttribute('tabindex', '0');
