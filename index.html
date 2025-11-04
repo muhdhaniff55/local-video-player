@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Local Video Player</title>
+    <title>Shaka Player Local Video File Player</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.1/shaka-player.compiled.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,13 +23,13 @@
             border-radius: 5px;
             background-color: #fff;
             cursor: pointer;
-            margin-bottom: 20px; /* Added spacing */
+            margin-bottom: 20px;
         }
         #video-info {
             font-size: 1.1em;
             color: #555;
             margin-bottom: 10px;
-            min-height: 20px; /* Reserve space */
+            min-height: 20px;
         }
         #video-container {
             margin-top: 5px;
@@ -39,11 +40,10 @@
             background-color: #000; 
             border-radius: 8px;
             overflow: hidden; 
-            /* Added transition for the loading state effect */
             transition: opacity 0.3s ease-in-out;
         }
         #video-container.loading {
-            opacity: 0.5; /* Dim the player while loading */
+            opacity: 0.5;
         }
         #videoPlayer {
             width: 100%;
@@ -54,7 +54,7 @@
 </head>
 <body>
 
-    <h1>🎬 Local Video File Player</h1>
+    <h1>🎬 Shaka Player Local Video File Player</h1>
 
     <input type="file" id="fileInput" accept="video/*">
     
@@ -68,89 +68,122 @@
 
     <script>
         const fileInput = document.getElementById('fileInput');
-        const videoPlayer = document.getElementById('videoPlayer');
+        const videoElement = document.getElementById('videoPlayer'); // Renamed for clarity
         const videoContainer = document.getElementById('video-container');
         const videoInfo = document.getElementById('video-info');
-
-        let currentVideoURL = null;
         
-        function cleanupPreviousURL() {
-            if (currentVideoURL) {
-                URL.revokeObjectURL(currentVideoURL);
-                currentVideoURL = null; 
-            }
-        }
+        let player = null; // Shaka Player instance
 
-        // --- Improvisation 2: Loading State Handlers ---
+        // --- Utility/Helper Functions ---
 
         function setLoading(isLoading) {
             if (isLoading) {
                 videoContainer.classList.add('loading');
+                // Only change text on start loading to avoid overriding file name
+                if (videoInfo.textContent.indexOf('File:') === -1) {
+                     videoInfo.textContent = 'Loading...';
+                }
             } else {
                 videoContainer.classList.remove('loading');
             }
         }
-
-        videoPlayer.addEventListener('loadedmetadata', () => {
+        
+        function onErrorEvent(event) {
+            // Extract the shaka.util.Error object from the event.
+            const error = event.detail;
+            videoInfo.textContent = `Error: ${error.code} - ${error.message}`;
+            console.error('Shaka Player Error:', error);
             setLoading(false);
-        });
+        }
 
-        videoPlayer.addEventListener('waiting', () => {
-            setLoading(true);
-        });
+        // --- Shaka Player Initialization ---
 
-        videoPlayer.addEventListener('playing', () => {
-            setLoading(false);
-        });
+        function initPlayer() {
+            // Check for browser compatibility
+            if (!shaka.Player.is */Supported()) {
+                videoInfo.textContent = 'Browser not supported by Shaka Player!';
+                console.error('Shaka Player is not supported by this browser.');
+                return;
+            }
+
+            // Create a Player instance and attach it to the video element.
+            player = new shaka.Player(videoElement);
+
+            // Listen for error events.
+            player.addEventListener('error', onErrorEvent);
+            
+            // Set up event listeners for loading state (Shaka handles most of it internally)
+            videoElement.addEventListener('waiting', () => { setLoading(true); });
+            videoElement.addEventListener('playing', () => { setLoading(false); });
+            videoElement.addEventListener('loadeddata', () => { setLoading(false); });
+
+            console.log('Shaka Player initialized.');
+        }
 
 
         // --- File Input Logic ---
-
         fileInput.addEventListener('change', function(event) {
-            cleanupPreviousURL();
+            if (!player) {
+                videoInfo.textContent = 'Player not initialized yet.';
+                return;
+            }
+
             const file = event.target.files[0];
 
             if (file) {
                 setLoading(true); // Start loading state
-                const videoURL = URL.createObjectURL(file);
-                currentVideoURL = videoURL;
-                videoPlayer.src = videoURL;
-                videoPlayer.load();
                 
-                // Improvisation 1: Display File Name
-                videoInfo.textContent = `File: ${file.name}`;
+                // 1. Create a local URL for the file
+                const videoURL = URL.createObjectURL(file);
+                
+                // 2. Use Shaka Player's load() method to play the URL
+                // Shaka can play local MP4 files directly via MediaSource Extensions (MSE)
+                player.load(videoURL).then(() => {
+                    console.log('The video has been loaded by Shaka Player.');
+                    setLoading(false);
+                    videoInfo.textContent = `File: ${file.name}`;
+                    // Important: Clean up the Blob URL after Shaka has loaded it
+                    URL.revokeObjectURL(videoURL);
+                }).catch(error => {
+                    // onErrorEvent is likely called as well, but this handles the promise
+                    console.error('Error loading asset with Shaka Player', error);
+                });
 
-                console.log(`Video loaded: ${file.name}`);
+                console.log(`Attempting to load video with Shaka Player: ${file.name}`);
             } else {
-                videoPlayer.src = "";
-                videoPlayer.load();
+                if (player) {
+                    player.unload(); // Unload current asset
+                }
                 videoInfo.textContent = "No video loaded.";
                 setLoading(false);
                 console.log("File selection cancelled.");
             }
         });
 
-        // --- Improvisation 3: Keyboard Controls ---
+        // Initialize Shaka Player on page load
+        document.addEventListener('DOMContentLoaded', initPlayer);
 
+
+        // --- Keyboard Controls (Adjusted to use videoElement) ---
         document.addEventListener('keydown', function(event) {
-            // Only apply controls if a video is loaded and the video element has focus
-            if (!videoPlayer.src) return;
+            // Only apply controls if a video is loaded and ready
+            if (!videoElement.src || videoElement.readyState < 1) return;
 
             const key = event.code;
 
             if (key === 'Space') {
                 event.preventDefault(); // Prevent page scroll
-                if (videoPlayer.paused) {
-                    videoPlayer.play();
+                if (videoElement.paused) {
+                    videoElement.play();
                 } else {
-                    videoPlayer.pause();
+                    videoElement.pause();
                 }
             } 
             else if (key === 'ArrowRight') {
-                videoPlayer.currentTime += 5; // Seek forward 5 seconds
+                videoElement.currentTime += 5; // Seek forward 5 seconds
             }
             else if (key === 'ArrowLeft') {
-                videoPlayer.currentTime -= 5; // Seek backward 5 seconds
+                videoElement.currentTime -= 5; // Seek backward 5 seconds
             }
         });
     </script>
