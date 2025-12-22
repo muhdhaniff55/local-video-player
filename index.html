@@ -6,64 +6,103 @@
     <title>Enhanced Local Video Player</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        h1 {
+            padding: 40px 20px;
+            background-color: #f0f2f5;
             color: #333;
         }
+
+        h1 {
+            margin-bottom: 20px;
+            font-weight: 300;
+        }
+
         #fileInput {
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             background-color: #fff;
             cursor: pointer;
-            margin-bottom: 20px; /* Added spacing */
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
         }
+
+        #fileInput:hover {
+            border-color: #aaa;
+        }
+
         #video-info {
-            font-size: 1.1em;
-            color: #555;
-            margin-bottom: 10px;
-            min-height: 20px; /* Reserve space */
+            font-size: 0.95em;
+            color: #666;
+            margin-bottom: 15px;
+            min-height: 24px;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+            
+            /* Long Filename Handling */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 10px;
         }
+
         #video-container {
-            margin-top: 5px;
+            position: relative;
             width: 90%; 
             max-width: 800px; 
-            border: 3px solid #ccc;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            border: 4px solid #fff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             background-color: #000; 
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden; 
-            /* Added transition for the loading state effect */
-            transition: opacity 0.3s ease-in-out;
+            transition: transform 0.2s, border-color 0.3s, opacity 0.3s;
         }
+
+        /* Drag and Drop Visual State */
+        #video-container.drag-over {
+            border-color: #4CAF50;
+            transform: scale(1.02);
+        }
+
         #video-container.loading {
-            opacity: 0.5; /* Dim the player while loading */
+            opacity: 0.6;
         }
+
         #videoPlayer {
             width: 100%;
             height: auto;
             display: block;
+            outline: none;
+        }
+
+        .controls-hint {
+            margin-top: 20px;
+            font-size: 0.8em;
+            color: #888;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <h1>🎬 Local Video File Player</h1>
+    <h1>🎬 Local Video Player</h1>
 
     <input type="file" id="fileInput" accept="video/*">
     
-    <div id="video-info">No video loaded.</div>
+    <div id="video-info" title="No video loaded.">No video loaded.</div>
 
     <div id="video-container">
         <video id="videoPlayer" controls playsinline>
             Your browser does not support the video tag.
         </video>
+    </div>
+
+    <div class="controls-hint">
+        Space: Play/Pause | Arrows: Seek & Volume | F: Fullscreen | Drag & Drop supported
     </div>
 
     <script>
@@ -73,7 +112,9 @@
         const videoInfo = document.getElementById('video-info');
 
         let currentVideoURL = null;
-        
+
+        // --- Core Logic ---
+
         function cleanupPreviousURL() {
             if (currentVideoURL) {
                 URL.revokeObjectURL(currentVideoURL);
@@ -81,76 +122,106 @@
             }
         }
 
-        // --- Improvisation 2: Loading State Handlers ---
-
         function setLoading(isLoading) {
-            if (isLoading) {
-                videoContainer.classList.add('loading');
-            } else {
-                videoContainer.classList.remove('loading');
-            }
+            isLoading ? videoContainer.classList.add('loading') : videoContainer.classList.remove('loading');
         }
 
-        videoPlayer.addEventListener('loadedmetadata', () => {
-            setLoading(false);
-        });
+        function handleFile(file) {
+            if (!file) return;
 
-        videoPlayer.addEventListener('waiting', () => {
-            setLoading(true);
-        });
-
-        videoPlayer.addEventListener('playing', () => {
-            setLoading(false);
-        });
-
-
-        // --- File Input Logic ---
-
-        fileInput.addEventListener('change', function(event) {
-            cleanupPreviousURL();
-            const file = event.target.files[0];
-
-            if (file) {
-                setLoading(true); // Start loading state
-                const videoURL = URL.createObjectURL(file);
-                currentVideoURL = videoURL;
-                videoPlayer.src = videoURL;
-                videoPlayer.load();
-                
-                // Improvisation 1: Display File Name
-                videoInfo.textContent = `File: ${file.name}`;
-
-                console.log(`Video loaded: ${file.name}`);
-            } else {
-                videoPlayer.src = "";
-                videoPlayer.load();
-                videoInfo.textContent = "No video loaded.";
-                setLoading(false);
-                console.log("File selection cancelled.");
+            // Validate if file is a video
+            if (!file.type.startsWith('video/')) {
+                videoInfo.textContent = "❌ Error: Please select a valid video file.";
+                videoInfo.style.color = "red";
+                return;
             }
+
+            cleanupPreviousURL();
+            setLoading(true);
+
+            const videoURL = URL.createObjectURL(file);
+            currentVideoURL = videoURL;
+            videoPlayer.src = videoURL;
+            videoPlayer.load();
+            
+            // Set filename and tooltip for long names
+            videoInfo.textContent = `File: ${file.name}`;
+            videoInfo.title = file.name; // Full name shows on hover
+            videoInfo.style.color = "#666";
+
+            console.log(`Loaded: ${file.name}`);
+        }
+
+        // --- Event Listeners ---
+
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
         });
 
-        // --- Improvisation 3: Keyboard Controls ---
+        // Drag and Drop Handlers
+        videoContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            videoContainer.classList.add('drag-over');
+        });
+
+        videoContainer.addEventListener('dragleave', () => {
+            videoContainer.classList.remove('drag-over');
+        });
+
+        videoContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            videoContainer.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            handleFile(file);
+        });
+
+        // Video State Handlers
+        videoPlayer.addEventListener('loadedmetadata', () => setLoading(false));
+        videoPlayer.addEventListener('waiting', () => setLoading(true));
+        videoPlayer.addEventListener('playing', () => setLoading(false));
+        
+        videoPlayer.addEventListener('error', () => {
+            setLoading(false);
+            videoInfo.textContent = "❌ Error: Unsupported video format or corrupted file.";
+            videoInfo.style.color = "red";
+        });
+
+        // --- Keyboard Controls ---
 
         document.addEventListener('keydown', function(event) {
-            // Only apply controls if a video is loaded and the video element has focus
             if (!videoPlayer.src) return;
 
             const key = event.code;
 
-            if (key === 'Space') {
-                event.preventDefault(); // Prevent page scroll
-                if (videoPlayer.paused) {
-                    videoPlayer.play();
-                } else {
-                    videoPlayer.pause();
-                }
-            } 
-            else if (key === 'ArrowRight') {
-                videoPlayer.currentTime += 5; // Seek forward 5 seconds
-            }
-            else if (key === 'ArrowLeft') {
-                videoPlayer.currentTime -= 5; // Seek backward 5 seconds
+            switch (key) {
+                case 'Space':
+                    event.preventDefault();
+                    videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause();
+                    break;
+                case 'ArrowRight':
+                    videoPlayer.currentTime += 5;
+                    break;
+                case 'ArrowLeft':
+                    videoPlayer.currentTime -= 5;
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    videoPlayer.volume = Math.min(1, videoPlayer.volume + 0.1);
+                    break;
+                case 'ArrowDown':
+                    event.preventDefault();
+                    videoPlayer.volume = Math.max(0, videoPlayer.volume - 0.1);
+                    break;
+                case 'KeyF':
+                    event.preventDefault();
+                    if (!document.fullscreenElement) {
+                        videoContainer.requestFullscreen().catch(err => {
+                            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                    break;
             }
         });
     </script>
