@@ -30,24 +30,36 @@
             transition: border-color 0.3s;
         }
 
-        #fileInput:hover {
-            border-color: #aaa;
-        }
-
+        /* --- Scrollable Video Info Styles --- */
         #video-info {
             font-size: 0.95em;
             color: #666;
             margin-bottom: 15px;
-            min-height: 24px;
+            min-height: 30px;
             max-width: 800px;
             width: 90%;
-            text-align: center;
             
-            /* Long Filename Handling */
+            /* Enable Horizontal Scroll */
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 0 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            
+            padding: 5px 15px;
+            background: #e9ecef;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        /* Custom Scrollbar for the info text */
+        #video-info::-webkit-scrollbar {
+            height: 4px;
+        }
+        #video-info::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+        #video-info::-webkit-scrollbar-track {
+            background: transparent;
         }
 
         #video-container {
@@ -62,10 +74,9 @@
             transition: transform 0.2s, border-color 0.3s, opacity 0.3s;
         }
 
-        /* Drag and Drop Visual State */
         #video-container.drag-over {
             border-color: #4CAF50;
-            transform: scale(1.02);
+            transform: scale(1.01);
         }
 
         #video-container.loading {
@@ -84,6 +95,7 @@
             font-size: 0.8em;
             color: #888;
             text-align: center;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -93,7 +105,7 @@
 
     <input type="file" id="fileInput" accept="video/*">
     
-    <div id="video-info" title="No video loaded.">No video loaded.</div>
+    <div id="video-info">No video loaded.</div>
 
     <div id="video-container">
         <video id="videoPlayer" controls playsinline>
@@ -102,7 +114,8 @@
     </div>
 
     <div class="controls-hint">
-        Space: Play/Pause | Arrows: Seek & Volume | F: Fullscreen | Drag & Drop supported
+        <b>Space:</b> Play/Pause | <b>Arrows:</b> Seek & Volume | <b>F:</b> Fullscreen<br>
+        <i>Drag & Drop a video file anywhere on the player to start.</i>
     </div>
 
     <script>
@@ -112,8 +125,6 @@
         const videoInfo = document.getElementById('video-info');
 
         let currentVideoURL = null;
-
-        // --- Core Logic ---
 
         function cleanupPreviousURL() {
             if (currentVideoURL) {
@@ -129,7 +140,6 @@
         function handleFile(file) {
             if (!file) return;
 
-            // Validate if file is a video
             if (!file.type.startsWith('video/')) {
                 videoInfo.textContent = "❌ Error: Please select a valid video file.";
                 videoInfo.style.color = "red";
@@ -144,21 +154,16 @@
             videoPlayer.src = videoURL;
             videoPlayer.load();
             
-            // Set filename and tooltip for long names
             videoInfo.textContent = `File: ${file.name}`;
-            videoInfo.title = file.name; // Full name shows on hover
             videoInfo.style.color = "#666";
-
-            console.log(`Loaded: ${file.name}`);
+            
+            // Auto-scroll back to start when new file is loaded
+            videoInfo.scrollLeft = 0; 
         }
 
-        // --- Event Listeners ---
+        // Event Listeners
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
 
-        fileInput.addEventListener('change', (e) => {
-            handleFile(e.target.files[0]);
-        });
-
-        // Drag and Drop Handlers
         videoContainer.addEventListener('dragover', (e) => {
             e.preventDefault();
             videoContainer.classList.add('drag-over');
@@ -171,29 +176,24 @@
         videoContainer.addEventListener('drop', (e) => {
             e.preventDefault();
             videoContainer.classList.remove('drag-over');
-            const file = e.dataTransfer.files[0];
-            handleFile(file);
+            handleFile(e.dataTransfer.files[0]);
         });
 
-        // Video State Handlers
         videoPlayer.addEventListener('loadedmetadata', () => setLoading(false));
         videoPlayer.addEventListener('waiting', () => setLoading(true));
         videoPlayer.addEventListener('playing', () => setLoading(false));
         
         videoPlayer.addEventListener('error', () => {
             setLoading(false);
-            videoInfo.textContent = "❌ Error: Unsupported video format or corrupted file.";
+            videoInfo.textContent = "❌ Error: Unsupported video format.";
             videoInfo.style.color = "red";
         });
 
-        // --- Keyboard Controls ---
-
+        // Keyboard Controls
         document.addEventListener('keydown', function(event) {
             if (!videoPlayer.src) return;
 
-            const key = event.code;
-
-            switch (key) {
+            switch (event.code) {
                 case 'Space':
                     event.preventDefault();
                     videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause();
@@ -215,9 +215,7 @@
                 case 'KeyF':
                     event.preventDefault();
                     if (!document.fullscreenElement) {
-                        videoContainer.requestFullscreen().catch(err => {
-                            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-                        });
+                        videoContainer.requestFullscreen();
                     } else {
                         document.exitFullscreen();
                     }
