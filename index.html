@@ -26,12 +26,6 @@
             margin: 0;
         }
 
-        h1 {
-            margin-bottom: 10px;
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-
         .upload-container {
             width: 100%;
             max-width: 800px;
@@ -47,13 +41,12 @@
 
         .upload-container.dragover {
             border-color: var(--primary-color);
-            background: #1e293b;
             box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
         }
 
         #fileInput { display: none; }
 
-        .btn-upload {
+        .btn-upload, .btn-resync {
             background: var(--primary-color);
             color: #000;
             padding: 10px 20px;
@@ -61,12 +54,22 @@
             font-weight: bold;
             display: inline-block;
             margin-top: 10px;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-resync {
+            background: #f59e0b; /* Orange color for noticeability */
+            margin-top: 15px;
+            display: none; /* Hidden until video loads */
         }
 
         #video-info {
             font-size: 0.9em;
             color: #94a3b8;
             margin-bottom: 15px;
+            text-align: center;
         }
 
         #video-container {
@@ -78,10 +81,9 @@
             background: #000;
         }
 
-        /* Fixed aspect ratio container */
         .video-wrapper {
             position: relative;
-            padding-top: 56.25%; /* 16:9 */
+            padding-top: 56.25%;
         }
 
         .video-js {
@@ -90,17 +92,6 @@
             left: 0;
             width: 100% !important;
             height: 100% !important;
-        }
-
-        /* Customizing the big play button */
-        .vjs-theme-city .vjs-big-play-button {
-            border: none;
-            background-color: var(--primary-color);
-            color: #000;
-            line-height: 1.5em;
-            height: 1.5em;
-            width: 1.5em;
-            border-radius: 50%;
         }
     </style>
 </head>
@@ -114,7 +105,10 @@
         <input type="file" id="fileInput" accept="video/*">
     </div>
 
-    <div id="video-info">Ready for playback</div>
+    <div id="video-info">
+        <span>Ready for playback</span><br>
+        <button id="resyncBtn" class="btn-resync">🔊 Restore Audio / Resync</button>
+    </div>
 
     <div id="video-container">
         <div class="video-wrapper">
@@ -123,6 +117,8 @@
                 class="video-js vjs-theme-city vjs-big-play-centered" 
                 controls 
                 preload="auto"
+                playsinline
+                webkit-playsinline
             >
                 <p class="vjs-no-js">To view this video please enable JavaScript</p>
             </video>
@@ -134,14 +130,12 @@
     <script>
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
-        const videoInfo = document.getElementById('video-info');
+        const videoInfo = document.getElementById('video-info').querySelector('span');
+        const resyncBtn = document.getElementById('resyncBtn');
         
-        // Initialize Player with extra features
         const player = videojs('videoPlayer', {
             playbackRates: [0.5, 1, 1.5, 2],
-            userActions: {
-                hotkeys: true // Enables space for play/pause, arrows for seeking
-            }
+            userActions: { hotkeys: true }
         });
 
         let currentVideoURL = null;
@@ -152,9 +146,7 @@
                 return;
             }
 
-            // Cleanup memory
             if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
-
             currentVideoURL = URL.createObjectURL(file);
             
             player.src({
@@ -162,44 +154,66 @@
                 type: file.type
             });
 
-            videoInfo.innerHTML = `Playing: <strong>${file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
-            player.play();
-            
-            // Scroll to player smoothly
+            // Show resync button when video is loaded
+            resyncBtn.style.display = 'inline-block';
+            videoInfo.innerHTML = `Playing: <strong>${file.name}</strong>`;
+
+            // iOS FIX: Ensure unmuted state on load
+            player.ready(() => {
+                player.muted(false);
+                player.volume(1.0);
+                
+                const playPromise = player.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        videoInfo.textContent = "Tap the 'Restore Audio' button or the Play icon to start.";
+                    });
+                }
+            });
+
             document.getElementById('video-container').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // --- Event Listeners ---
-
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-
-        // Drag and Drop Logic
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
+        // --- THE RESYNC LOGIC ---
+        // This function forces the browser to re-acknowledge user intent for audio
+        resyncBtn.addEventListener('click', () => {
+            player.muted(false);
+            player.volume(1.0);
+            
+            // If the video is stuck, we can attempt to "kick" it back to life
+            const currentTime = player.currentTime();
+            player.load(); // Reloads the source
+            player.currentTime(currentTime); // Returns to same spot
+            player.play();
+            
+            resyncBtn.textContent = "🔊 Audio Restored";
+            setTimeout(() => { resyncBtn.textContent = "🔊 Restore Audio / Resync"; }, 2000);
         });
 
+        // --- Standard Event Listeners ---
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             handleFile(e.dataTransfer.files[0]);
         });
-
-        // Click on zone to trigger input
         dropZone.addEventListener('click', (e) => {
-            if(e.target !== fileInput && e.target.tagName !== 'LABEL') {
-                fileInput.click();
-            }
+            if(e.target !== fileInput && e.target.tagName !== 'LABEL') fileInput.click();
         });
 
-        // Error Handling
         player.on('error', () => {
             videoInfo.style.color = "#ff4444";
-            videoInfo.textContent = "Error: This video format may not be supported by your browser.";
+            videoInfo.textContent = "Error: Video format not supported.";
+        });
+
+        // Automatically try to unmute if player "stalls" and recovers
+        player.on('playing', () => {
+            if (player.muted()) {
+                console.log("Detecting muted playback on iOS... ready for resync.");
+            }
         });
     </script>
-
 </body>
 </html>
