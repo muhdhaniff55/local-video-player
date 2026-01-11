@@ -3,51 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video.js Local Video Player</title>
+    <title>Pro Stream | Local Video Player</title>
     
     <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
+    <link href="https://unpkg.com/@videojs/themes@1.0.1/dist/city/index.css" rel="stylesheet">
     
     <style>
+        :root {
+            --primary-color: #00d2ff;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            background-color: #f4f4f4;
+            padding: 40px 20px;
+            background-color: var(--bg-color);
+            color: #f8fafc;
+            margin: 0;
         }
+
         h1 {
-            color: #333;
-        }
-        #fileInput {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background-color: #fff;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-        #video-info {
-            font-size: 1.1em;
-            color: #555;
             margin-bottom: 10px;
-            min-height: 20px;
+            font-weight: 300;
+            letter-spacing: 1px;
         }
-        
-        /* Responsive Container CSS (16:9 Aspect Ratio) */
+
+        .upload-container {
+            width: 100%;
+            max-width: 800px;
+            border: 2px dashed #334155;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            background: var(--card-bg);
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            cursor: pointer;
+        }
+
+        .upload-container.dragover {
+            border-color: var(--primary-color);
+            background: #1e293b;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
+        }
+
+        #fileInput { display: none; }
+
+        .btn-upload {
+            background: var(--primary-color);
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        #video-info {
+            font-size: 0.9em;
+            color: #94a3b8;
+            margin-bottom: 15px;
+        }
+
         #video-container {
-            margin-top: 5px;
-            width: 90%; 
-            max-width: 800px; 
-            background-color: #000; 
-            border-radius: 8px;
-            overflow: hidden; 
-            position: relative; 
-            padding-top: 56.25%; /* 9/16 * 100 */
-            height: 0; 
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
         }
-        
-        /* Video.js Player Sizing */
+
+        /* Fixed aspect ratio container */
+        .video-wrapper {
+            position: relative;
+            padding-top: 56.25%; /* 16:9 */
+        }
+
         .video-js {
             position: absolute;
             top: 0;
@@ -56,114 +92,113 @@
             height: 100% !important;
         }
 
-        /* Loading Indicator CSS */
-        /* Shows the built-in spinner when the 'loading' class is manually added */
-        #video-container.loading .vjs-loading-spinner {
-            display: block; 
+        /* Customizing the big play button */
+        .vjs-theme-city .vjs-big-play-button {
+            border: none;
+            background-color: var(--primary-color);
+            color: #000;
+            line-height: 1.5em;
+            height: 1.5em;
+            width: 1.5em;
+            border-radius: 50%;
         }
     </style>
 </head>
 <body>
 
-    <h1>🎬 Local Video File Player (Video.js)</h1>
-
-    <input type="file" id="fileInput" accept="video/*">
+    <h1>🎬 PRO<b>STREAM</b></h1>
     
-    <div id="video-info">No video loaded.</div>
+    <div class="upload-container" id="dropZone">
+        <p>Drag & drop video file here or</p>
+        <label for="fileInput" class="btn-upload">Browse Files</label>
+        <input type="file" id="fileInput" accept="video/*">
+    </div>
+
+    <div id="video-info">Ready for playback</div>
 
     <div id="video-container">
-        <video 
-            id="videoPlayer" 
-            class="video-js vjs-default-skin vjs-big-play-centered" 
-            controls 
-            playsinline 
-            preload="auto"
-            data-setup='{}'
-        >
-            Your browser does not support the video tag.
-        </video>
+        <div class="video-wrapper">
+            <video 
+                id="videoPlayer" 
+                class="video-js vjs-theme-city vjs-big-play-centered" 
+                controls 
+                preload="auto"
+            >
+                <p class="vjs-no-js">To view this video please enable JavaScript</p>
+            </video>
+        </div>
     </div>
 
     <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
 
     <script>
         const fileInput = document.getElementById('fileInput');
-        const player = videojs('videoPlayer'); 
+        const dropZone = document.getElementById('dropZone');
         const videoInfo = document.getElementById('video-info');
-        const videoContainer = document.getElementById('video-container');
+        
+        // Initialize Player with extra features
+        const player = videojs('videoPlayer', {
+            playbackRates: [0.5, 1, 1.5, 2],
+            userActions: {
+                hotkeys: true // Enables space for play/pause, arrows for seeking
+            }
+        });
 
         let currentVideoURL = null;
-        
-        // Function to release memory from the previous video file (prevents memory leaks)
-        function cleanupPreviousURL() {
-            if (currentVideoURL) {
-                URL.revokeObjectURL(currentVideoURL);
-                currentVideoURL = null; 
+
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('video/')) {
+                alert('Please select a valid video file.');
+                return;
             }
+
+            // Cleanup memory
+            if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
+
+            currentVideoURL = URL.createObjectURL(file);
+            
+            player.src({
+                src: currentVideoURL,
+                type: file.type
+            });
+
+            videoInfo.innerHTML = `Playing: <strong>${file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+            player.play();
+            
+            // Scroll to player smoothly
+            document.getElementById('video-container').scrollIntoView({ behavior: 'smooth' });
         }
-        
-        // --- Loading State Management ---
-        function setLoading(isLoading) {
-            if (isLoading) {
-                videoContainer.classList.add('loading');
-            } else {
-                videoContainer.classList.remove('loading');
+
+        // --- Event Listeners ---
+
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        // Drag and Drop Logic
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        // Click on zone to trigger input
+        dropZone.addEventListener('click', (e) => {
+            if(e.target !== fileInput && e.target.tagName !== 'LABEL') {
+                fileInput.click();
             }
-        }
-
-        // --- Video.js Event Listeners for User Feedback ---
-        player.on('loadedmetadata', () => {
-            setLoading(false); // Video source loaded
         });
 
-        player.on('waiting', () => {
-            setLoading(true); // Buffering/stalling
-        });
-
-        player.on('playing', () => {
-            setLoading(false); // Playback started/resumed
-        });
-
+        // Error Handling
         player.on('error', () => {
-            setLoading(false);
-            videoInfo.textContent = "Error: Cannot play the selected video file. Check file format.";
-            console.error("Video.js Player Error:", player.error());
+            videoInfo.style.color = "#ff4444";
+            videoInfo.textContent = "Error: This video format may not be supported by your browser.";
         });
-        
-        // --- File Input Logic ---
-        fileInput.addEventListener('change', function(event) {
-            cleanupPreviousURL();
-            const file = event.target.files[0];
-
-            if (file) {
-                setLoading(true); // Show loading spinner immediately upon file selection
-                
-                // 1. Create a temporary URL for the browser to read the local file
-                const videoURL = URL.createObjectURL(file);
-                currentVideoURL = videoURL;
-                
-                // 2. Use the Video.js player methods to set the source
-                player.src({
-                    src: videoURL,
-                    type: file.type || 'video/mp4' // Use detected type or default
-                });
-                player.load();
-                
-                // 3. Update the info message
-                videoInfo.textContent = `File: ${file.name}`;
-                console.log(`Video loaded: ${file.name}`);
-            } else {
-                // File selection cancelled
-                player.reset(); 
-                videoInfo.textContent = "No video loaded.";
-                setLoading(false);
-                console.log("File selection cancelled.");
-            }
-        });
-        
-        // Optional: Ensure the Video.js player element is focusable for its own keyboard controls
-        player.el().setAttribute('tabindex', '0');
-        
     </script>
 
 </body>
