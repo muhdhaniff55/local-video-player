@@ -30,7 +30,6 @@
             transition: border-color 0.3s;
         }
 
-        /* --- Scrollable Video Info Styles --- */
         #video-info {
             font-size: 0.95em;
             color: #666;
@@ -38,28 +37,21 @@
             min-height: 30px;
             max-width: 800px;
             width: 90%;
-            
-            /* Enable Horizontal Scroll */
             white-space: nowrap;
             overflow-x: auto;
             overflow-y: hidden;
-            
             padding: 5px 15px;
             background: #e9ecef;
             border-radius: 20px;
             text-align: center;
         }
 
-        /* Custom Scrollbar for the info text */
         #video-info::-webkit-scrollbar {
             height: 4px;
         }
         #video-info::-webkit-scrollbar-thumb {
             background: #ccc;
             border-radius: 10px;
-        }
-        #video-info::-webkit-scrollbar-track {
-            background: transparent;
         }
 
         #video-container {
@@ -156,9 +148,10 @@
             
             videoInfo.textContent = `File: ${file.name}`;
             videoInfo.style.color = "#666";
-            
-            // Auto-scroll back to start when new file is loaded
             videoInfo.scrollLeft = 0; 
+            
+            // Remove focus from the player so custom keys take priority over browser defaults
+            videoPlayer.blur();
         }
 
         // Event Listeners
@@ -199,18 +192,21 @@
                     videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause();
                     break;
                 case 'ArrowRight':
+                    event.preventDefault();
                     videoPlayer.currentTime += 5;
                     break;
                 case 'ArrowLeft':
+                    event.preventDefault();
                     videoPlayer.currentTime -= 5;
                     break;
                 case 'ArrowUp':
-                    event.preventDefault();
-                    videoPlayer.volume = Math.min(1, videoPlayer.volume + 0.1);
+                    event.preventDefault(); // Prevents page scroll and browser UI conflicts
+                    // Rounds to 1 decimal place to prevent floating point math bugs
+                    videoPlayer.volume = Math.min(1, Math.round((videoPlayer.volume + 0.1) * 10) / 10);
                     break;
                 case 'ArrowDown':
                     event.preventDefault();
-                    videoPlayer.volume = Math.max(0, videoPlayer.volume - 0.1);
+                    videoPlayer.volume = Math.max(0, Math.round((videoPlayer.volume - 0.1) * 10) / 10);
                     break;
                 case 'KeyF':
                     event.preventDefault();
