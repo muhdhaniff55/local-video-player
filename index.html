@@ -57,12 +57,17 @@
             cursor: pointer;
             border: none;
             text-decoration: none;
+            transition: transform 0.1s;
+        }
+
+        .btn-upload:active, .btn-resync:active {
+            transform: scale(0.98);
         }
 
         .btn-resync {
-            background: #f59e0b; /* Orange color for noticeability */
+            background: #f59e0b;
             margin-top: 15px;
-            display: none; /* Hidden until video loads */
+            display: none;
         }
 
         #video-info {
@@ -70,6 +75,7 @@
             color: #94a3b8;
             margin-bottom: 15px;
             text-align: center;
+            min-height: 50px;
         }
 
         #video-container {
@@ -83,7 +89,7 @@
 
         .video-wrapper {
             position: relative;
-            padding-top: 56.25%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
         }
 
         .video-js {
@@ -116,9 +122,8 @@
                 id="videoPlayer" 
                 class="video-js vjs-theme-city vjs-big-play-centered" 
                 controls 
-                preload="auto"
+                preload="metadata"
                 playsinline
-                webkit-playsinline
             >
                 <p class="vjs-no-js">To view this video please enable JavaScript</p>
             </video>
@@ -130,7 +135,7 @@
     <script>
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
-        const videoInfo = document.getElementById('video-info').querySelector('span');
+        const videoInfoSpan = document.querySelector('#video-info span');
         const resyncBtn = document.getElementById('resyncBtn');
         
         const player = videojs('videoPlayer', {
@@ -146,19 +151,19 @@
                 return;
             }
 
+            // Clean up old memory
             if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
             currentVideoURL = URL.createObjectURL(file);
             
+            // Load new source
             player.src({
                 src: currentVideoURL,
                 type: file.type
             });
 
-            // Show resync button when video is loaded
             resyncBtn.style.display = 'inline-block';
-            videoInfo.innerHTML = `Playing: <strong>${file.name}</strong>`;
+            videoInfoSpan.innerHTML = `Playing: <strong>${file.name}</strong>`;
 
-            // iOS FIX: Ensure unmuted state on load
             player.ready(() => {
                 player.muted(false);
                 player.volume(1.0);
@@ -166,7 +171,7 @@
                 const playPromise = player.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(() => {
-                        videoInfo.textContent = "Tap the 'Restore Audio' button or the Play icon to start.";
+                        videoInfoSpan.textContent = "Browser blocked autoplay. Tap 'Restore Audio' or the Play button.";
                     });
                 }
             });
@@ -174,45 +179,58 @@
             document.getElementById('video-container').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // --- THE RESYNC LOGIC ---
-        // This function forces the browser to re-acknowledge user intent for audio
+        // --- FIXED RESYNC LOGIC ---
         resyncBtn.addEventListener('click', () => {
+            // Force audio state
             player.muted(false);
             player.volume(1.0);
             
-            // If the video is stuck, we can attempt to "kick" it back to life
+            // Re-sync by toggling state and seeking
             const currentTime = player.currentTime();
-            player.load(); // Reloads the source
-            player.currentTime(currentTime); // Returns to same spot
-            player.play();
             
-            resyncBtn.textContent = "🔊 Audio Restored";
-            setTimeout(() => { resyncBtn.textContent = "🔊 Restore Audio / Resync"; }, 2000);
+            // We use pause/play instead of .load() to keep the Blob URL alive
+            player.pause();
+            
+            // Small delay helps browsers "catch up" with the audio context
+            setTimeout(() => {
+                player.currentTime(currentTime);
+                player.play().then(() => {
+                    resyncBtn.textContent = "🔊 Audio Restored";
+                    resyncBtn.style.background = "#10b981"; // Green for success
+                }).catch(err => {
+                    console.error("Playback failed:", err);
+                });
+            }, 50);
+            
+            setTimeout(() => { 
+                resyncBtn.textContent = "🔊 Restore Audio / Resync"; 
+                resyncBtn.style.background = "#f59e0b"; // Back to orange
+            }, 2000);
         });
 
-        // --- Standard Event Listeners ---
+        // --- Event Listeners ---
         fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        
+        dropZone.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            dropZone.classList.add('dragover'); 
+        });
+        
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             handleFile(e.dataTransfer.files[0]);
         });
+
         dropZone.addEventListener('click', (e) => {
             if(e.target !== fileInput && e.target.tagName !== 'LABEL') fileInput.click();
         });
 
         player.on('error', () => {
-            videoInfo.style.color = "#ff4444";
-            videoInfo.textContent = "Error: Video format not supported.";
-        });
-
-        // Automatically try to unmute if player "stalls" and recovers
-        player.on('playing', () => {
-            if (player.muted()) {
-                console.log("Detecting muted playback on iOS... ready for resync.");
-            }
+            videoInfoSpan.style.color = "#ff4444";
+            videoInfoSpan.textContent = "Error: This video format is not supported by your browser.";
         });
     </script>
 </body>
