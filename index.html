@@ -2,234 +2,182 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Stream | iOS Optimized Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStream Pro | 4K Media Player</title>
     
-    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
-    <link href="https://unpkg.com/@videojs/themes@1.0.1/dist/city/index.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     
     <style>
         :root {
-            --primary-color: #00d2ff;
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --primary: #6366f1; 
+            --glass: rgba(15, 23, 42, 0.85);
+            --border: rgba(255, 255, 255, 0.1);
+            --plyr-color-main: #6366f1;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: radial-gradient(circle at top, #1e1b4b 0%, #020617 100%);
+            color: #f8fafc;
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            background-color: var(--bg-color);
-            color: #f8fafc;
-            margin: 0;
-            overflow-x: hidden;
+            min-height: 100vh;
+            padding: 40px 20px;
         }
 
-        h1 { font-size: 1.5rem; letter-spacing: 2px; margin-bottom: 20px; }
+        /* Clean, Professional Title */
+        h1 { 
+            font-weight: 800;
+            font-size: 2.2rem;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 40px;
+            font-size: 1rem;
+        }
 
         .upload-container {
             width: 100%;
-            max-width: 600px;
-            border: 2px dashed #334155;
-            border-radius: 12px;
-            padding: 20px;
+            max-width: 800px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 60px 20px;
             text-align: center;
-            background: var(--card-bg);
             transition: all 0.3s ease;
-            margin-bottom: 20px;
             cursor: pointer;
+        }
+
+        .upload-container:hover {
+            border-color: var(--primary);
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .btn-upload {
+            background: var(--primary);
+            color: white;
+            padding: 14px 35px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 20px;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .player-wrapper {
+            width: 100%;
+            max-width: 1100px;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid var(--border);
+            display: none; 
+            margin-top: 30px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+        }
+
+        #file-info {
+            margin-top: 20px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            background: rgba(255,255,255,0.05);
+            padding: 8px 15px;
+            border-radius: 30px;
         }
 
         #fileInput { display: none; }
-
-        .btn-upload, .btn-resync {
-            background: var(--primary-color);
-            color: #000;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: bold;
-            display: inline-block;
-            margin-top: 10px;
-            cursor: pointer;
-            border: none;
-        }
-
-        .btn-resync {
-            background: #f59e0b;
-            display: none;
-            width: 100%;
-            max-width: 300px;
-        }
-
-        #video-info {
-            font-size: 0.85em;
-            color: #94a3b8;
-            margin-bottom: 15px;
-            text-align: center;
-            padding: 0 10px;
-        }
-
-        #video-container {
-            width: 100%;
-            max-width: 900px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            border-radius: 12px;
-            overflow: hidden;
-            background: #000;
-            /* iOS GPU Acceleration: Prevents crashes during UI rendering */
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
-        }
-
-        .video-wrapper {
-            position: relative;
-            padding-top: 56.25%;
-        }
-
-        .video-js {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        /* Better mobile touch targets */
-        .vjs-big-play-button {
-            width: 2em !important;
-            height: 2em !important;
-            line-height: 2em !important;
-            border-radius: 50% !important;
-        }
     </style>
 </head>
 <body>
 
-    <h1>🎬 PRO<b>STREAM</b></h1>
+    <h1>LocalStream Pro</h1>
+    <div class="subtitle">Secure Local Playback • No Upload Required</div>
     
     <div class="upload-container" id="dropZone">
-        <p>Select or Drag Video</p>
-        <label for="fileInput" class="btn-upload">Browse Files</label>
+        <p style="font-size: 1.2rem; margin: 0;">Drag and drop your movie file</p>
+        <p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Supports MP4, MKV, WebM (4K Ready)</p>
+        <div class="btn-upload">Open File</div>
         <input type="file" id="fileInput" accept="video/*">
     </div>
 
-    <div id="video-info">
-        <span>Ready for playback</span><br>
-        <button id="resyncBtn" class="btn-resync">🔊 Fix Audio / Resume</button>
+    <div class="player-wrapper" id="playerWrapper">
+        <video id="player" playsinline controls preload="metadata"></video>
     </div>
 
-    <div id="video-container">
-        <div class="video-wrapper">
-            <video 
-                id="videoPlayer" 
-                class="video-js vjs-theme-city vjs-big-play-centered" 
-                controls 
-                preload="auto"
-                playsinline
-                webkit-playsinline
-                muted
-            >
-            </video>
-        </div>
-    </div>
+    <div id="file-info" style="display:none"></div>
 
-    <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
     <script>
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
-        const videoInfoSpan = document.querySelector('#video-info span');
-        const resyncBtn = document.getElementById('resyncBtn');
+        const playerWrapper = document.getElementById('playerWrapper');
+        const fileInfo = document.getElementById('file-info');
         
-        const player = videojs('videoPlayer', {
-            playbackRates: [0.5, 1, 1.5, 2],
-            fluid: false,
-            responsive: true,
-            userActions: { hotkeys: true }
+        const player = new Plyr('#player', {
+            controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
+            settings: ['speed', 'quality'],
+            tooltips: { controls: true, seek: true }
         });
 
-        let currentVideoURL = null;
-        let lastTime = 0;
-        let activeFileName = "";
-
-        // 1. TRACK TIME (To resume after iOS reload)
-        player.on('timeupdate', () => {
-            if (player.currentTime() > 0) {
-                lastTime = player.currentTime();
-            }
-        });
-
-        // 2. AUTO-RECOVERY LOGIC
-        // If iOS purges memory, the player emits 'error' or 'emptied'
-        player.on(['error', 'emptied'], () => {
-            if (currentVideoURL && player.currentTime() === 0 && lastTime > 0) {
-                console.log("iOS Purge Detected. Attempting recovery...");
-                recoverPlayback();
-            }
-        });
+        let currentUrl = null;
 
         function handleFile(file) {
             if (!file || !file.type.startsWith('video/')) return;
 
-            activeFileName = file.name;
-            if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
-            currentVideoURL = URL.createObjectURL(file);
-            
-            player.src({ src: currentVideoURL, type: file.type });
-            
-            resyncBtn.style.display = 'inline-block';
-            videoInfoSpan.innerHTML = `Loaded: <strong>${file.name}</strong>`;
+            // Memory cleanup for heavy files
+            if (currentUrl) URL.revokeObjectURL(currentUrl);
+            currentUrl = URL.createObjectURL(file);
 
-            player.ready(() => {
-                // On iOS, we start muted to ensure the reload doesn't block playback
-                player.muted(true);
-                player.play().catch(e => console.log("Manual play required"));
+            player.source = {
+                type: 'video',
+                title: file.name,
+                sources: [{ src: currentUrl, type: file.type }]
+            };
+
+            playerWrapper.style.display = 'block';
+            fileInfo.style.display = 'inline-block';
+            
+            // Format file size for clarity
+            const size = file.size > 1073741824 
+                ? (file.size / 1073741824).toFixed(2) + ' GB' 
+                : (file.size / 1048576).toFixed(2) + ' MB';
+            
+            fileInfo.innerHTML = `📄 <strong>${file.name}</strong> • ${size}`;
+            
+            player.once('canplay', () => {
+                player.play();
+                playerWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
             });
-
-            document.getElementById('video-container').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function recoverPlayback() {
-            player.src({ src: currentVideoURL, type: 'video/mp4' }); // Re-assign src
-            player.one('loadedmetadata', () => {
-                player.currentTime(lastTime);
-                player.play();
-                videoInfoSpan.innerHTML = `❤️ Recovered: <strong>${activeFileName}</strong>`;
-            });
-        }
-
-        // 3. MANUAL AUDIO RESTORE (iOS User Gesture)
-        resyncBtn.addEventListener('click', () => {
-            player.muted(false);
-            player.volume(1.0);
-            
-            // Toggle play/pause to refresh the audio context
-            if (player.paused()) {
-                player.play();
-            }
-
-            resyncBtn.textContent = "🔊 Audio Active";
-            resyncBtn.style.background = "#10b981";
-            
-            setTimeout(() => { 
-                resyncBtn.textContent = "🔊 Fix Audio / Resume"; 
-                resyncBtn.style.background = "#f59e0b"; 
-            }, 2000);
-        });
-
-        // Event Listeners
+        dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            handleFile(e.dataTransfer.files[0]);
+        
+        dropZone.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            dropZone.style.borderColor = "var(--primary)";
+            dropZone.style.background = "rgba(99, 102, 241, 0.05)";
         });
-        dropZone.addEventListener('click', (e) => {
-            if(e.target !== fileInput && e.target.tagName !== 'LABEL') fileInput.click();
+
+        dropZone.addEventListener('dragleave', () => { 
+            dropZone.style.borderColor = "var(--border)"; 
+            dropZone.style.background = "var(--glass)";
+        });
+
+        dropZone.addEventListener('drop', (e) => { 
+            e.preventDefault(); 
+            handleFile(e.dataTransfer.files[0]); 
         });
     </script>
 </body>
