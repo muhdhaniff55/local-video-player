@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Stream | Local Video Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Stream | iOS Optimized Player</title>
     
     <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
     <link href="https://unpkg.com/@videojs/themes@1.0.1/dist/city/index.css" rel="stylesheet">
@@ -16,32 +16,30 @@
         }
 
         body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 40px 20px;
+            padding: 20px;
             background-color: var(--bg-color);
             color: #f8fafc;
             margin: 0;
+            overflow-x: hidden;
         }
+
+        h1 { font-size: 1.5rem; letter-spacing: 2px; margin-bottom: 20px; }
 
         .upload-container {
             width: 100%;
-            max-width: 800px;
+            max-width: 600px;
             border: 2px dashed #334155;
             border-radius: 12px;
-            padding: 30px;
+            padding: 20px;
             text-align: center;
             background: var(--card-bg);
             transition: all 0.3s ease;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             cursor: pointer;
-        }
-
-        .upload-container.dragover {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
         }
 
         #fileInput { display: none; }
@@ -49,33 +47,28 @@
         .btn-upload, .btn-resync {
             background: var(--primary-color);
             color: #000;
-            padding: 10px 20px;
-            border-radius: 6px;
+            padding: 12px 24px;
+            border-radius: 8px;
             font-weight: bold;
             display: inline-block;
             margin-top: 10px;
             cursor: pointer;
             border: none;
-            text-decoration: none;
-            transition: transform 0.1s;
-        }
-
-        .btn-upload:active, .btn-resync:active {
-            transform: scale(0.98);
         }
 
         .btn-resync {
             background: #f59e0b;
-            margin-top: 15px;
             display: none;
+            width: 100%;
+            max-width: 300px;
         }
 
         #video-info {
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #94a3b8;
             margin-bottom: 15px;
             text-align: center;
-            min-height: 50px;
+            padding: 0 10px;
         }
 
         #video-container {
@@ -85,11 +78,14 @@
             border-radius: 12px;
             overflow: hidden;
             background: #000;
+            /* iOS GPU Acceleration: Prevents crashes during UI rendering */
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
 
         .video-wrapper {
             position: relative;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            padding-top: 56.25%;
         }
 
         .video-js {
@@ -99,6 +95,14 @@
             width: 100% !important;
             height: 100% !important;
         }
+
+        /* Better mobile touch targets */
+        .vjs-big-play-button {
+            width: 2em !important;
+            height: 2em !important;
+            line-height: 2em !important;
+            border-radius: 50% !important;
+        }
     </style>
 </head>
 <body>
@@ -106,14 +110,14 @@
     <h1>🎬 PRO<b>STREAM</b></h1>
     
     <div class="upload-container" id="dropZone">
-        <p>Drag & drop video file here or</p>
+        <p>Select or Drag Video</p>
         <label for="fileInput" class="btn-upload">Browse Files</label>
         <input type="file" id="fileInput" accept="video/*">
     </div>
 
     <div id="video-info">
         <span>Ready for playback</span><br>
-        <button id="resyncBtn" class="btn-resync">🔊 Restore Audio / Resync</button>
+        <button id="resyncBtn" class="btn-resync">🔊 Fix Audio / Resume</button>
     </div>
 
     <div id="video-container">
@@ -122,10 +126,11 @@
                 id="videoPlayer" 
                 class="video-js vjs-theme-city vjs-big-play-centered" 
                 controls 
-                preload="metadata"
+                preload="auto"
                 playsinline
+                webkit-playsinline
+                muted
             >
-                <p class="vjs-no-js">To view this video please enable JavaScript</p>
             </video>
         </div>
     </div>
@@ -140,97 +145,91 @@
         
         const player = videojs('videoPlayer', {
             playbackRates: [0.5, 1, 1.5, 2],
+            fluid: false,
+            responsive: true,
             userActions: { hotkeys: true }
         });
 
         let currentVideoURL = null;
+        let lastTime = 0;
+        let activeFileName = "";
+
+        // 1. TRACK TIME (To resume after iOS reload)
+        player.on('timeupdate', () => {
+            if (player.currentTime() > 0) {
+                lastTime = player.currentTime();
+            }
+        });
+
+        // 2. AUTO-RECOVERY LOGIC
+        // If iOS purges memory, the player emits 'error' or 'emptied'
+        player.on(['error', 'emptied'], () => {
+            if (currentVideoURL && player.currentTime() === 0 && lastTime > 0) {
+                console.log("iOS Purge Detected. Attempting recovery...");
+                recoverPlayback();
+            }
+        });
 
         function handleFile(file) {
-            if (!file || !file.type.startsWith('video/')) {
-                alert('Please select a valid video file.');
-                return;
-            }
+            if (!file || !file.type.startsWith('video/')) return;
 
-            // Clean up old memory
+            activeFileName = file.name;
             if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
             currentVideoURL = URL.createObjectURL(file);
             
-            // Load new source
-            player.src({
-                src: currentVideoURL,
-                type: file.type
-            });
-
+            player.src({ src: currentVideoURL, type: file.type });
+            
             resyncBtn.style.display = 'inline-block';
-            videoInfoSpan.innerHTML = `Playing: <strong>${file.name}</strong>`;
+            videoInfoSpan.innerHTML = `Loaded: <strong>${file.name}</strong>`;
 
             player.ready(() => {
-                player.muted(false);
-                player.volume(1.0);
-                
-                const playPromise = player.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {
-                        videoInfoSpan.textContent = "Browser blocked autoplay. Tap 'Restore Audio' or the Play button.";
-                    });
-                }
+                // On iOS, we start muted to ensure the reload doesn't block playback
+                player.muted(true);
+                player.play().catch(e => console.log("Manual play required"));
             });
 
             document.getElementById('video-container').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // --- FIXED RESYNC LOGIC ---
+        function recoverPlayback() {
+            player.src({ src: currentVideoURL, type: 'video/mp4' }); // Re-assign src
+            player.one('loadedmetadata', () => {
+                player.currentTime(lastTime);
+                player.play();
+                videoInfoSpan.innerHTML = `❤️ Recovered: <strong>${activeFileName}</strong>`;
+            });
+        }
+
+        // 3. MANUAL AUDIO RESTORE (iOS User Gesture)
         resyncBtn.addEventListener('click', () => {
-            // Force audio state
             player.muted(false);
             player.volume(1.0);
             
-            // Re-sync by toggling state and seeking
-            const currentTime = player.currentTime();
-            
-            // We use pause/play instead of .load() to keep the Blob URL alive
-            player.pause();
-            
-            // Small delay helps browsers "catch up" with the audio context
-            setTimeout(() => {
-                player.currentTime(currentTime);
-                player.play().then(() => {
-                    resyncBtn.textContent = "🔊 Audio Restored";
-                    resyncBtn.style.background = "#10b981"; // Green for success
-                }).catch(err => {
-                    console.error("Playback failed:", err);
-                });
-            }, 50);
+            // Toggle play/pause to refresh the audio context
+            if (player.paused()) {
+                player.play();
+            }
+
+            resyncBtn.textContent = "🔊 Audio Active";
+            resyncBtn.style.background = "#10b981";
             
             setTimeout(() => { 
-                resyncBtn.textContent = "🔊 Restore Audio / Resync"; 
-                resyncBtn.style.background = "#f59e0b"; // Back to orange
+                resyncBtn.textContent = "🔊 Fix Audio / Resume"; 
+                resyncBtn.style.background = "#f59e0b"; 
             }, 2000);
         });
 
-        // --- Event Listeners ---
+        // Event Listeners
         fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-        
-        dropZone.addEventListener('dragover', (e) => { 
-            e.preventDefault(); 
-            dropZone.classList.add('dragover'); 
-        });
-        
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-        
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             handleFile(e.dataTransfer.files[0]);
         });
-
         dropZone.addEventListener('click', (e) => {
             if(e.target !== fileInput && e.target.tagName !== 'LABEL') fileInput.click();
-        });
-
-        player.on('error', () => {
-            videoInfoSpan.style.color = "#ff4444";
-            videoInfoSpan.textContent = "Error: This video format is not supported by your browser.";
         });
     </script>
 </body>
