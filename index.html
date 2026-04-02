@@ -2,137 +2,165 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Stream | iOS Optimized Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaPlayer | Private Cinema</title>
     
     <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
-    <link href="https://unpkg.com/@videojs/themes@1.0.1/dist/city/index.css" rel="stylesheet">
+    <link href="https://unpkg.com/@videojs/themes@1.0.1/dist/fantasy/index.css" rel="stylesheet">
     
     <style>
         :root {
-            --primary-color: #00d2ff;
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --bg: #0b0e14;
+            --surface: #161b22;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
             padding: 20px;
-            background-color: var(--bg-color);
-            color: #f8fafc;
-            margin: 0;
-            overflow-x: hidden;
         }
 
-        h1 { font-size: 1.5rem; letter-spacing: 2px; margin-bottom: 20px; }
-
-        .upload-container {
-            width: 100%;
-            max-width: 600px;
-            border: 2px dashed #334155;
-            border-radius: 12px;
-            padding: 20px;
+        /* Clean Header */
+        header {
             text-align: center;
-            background: var(--card-bg);
-            transition: all 0.3s ease;
-            margin-bottom: 20px;
+            margin: 40px 0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            letter-spacing: -1px;
+            margin: 0;
+            background: linear-gradient(to right, #fff, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        /* Upload Area */
+        .drop-card {
+            width: 100%;
+            max-width: 800px;
+            background: var(--surface);
+            border: 2px dashed #30363d;
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .drop-card:hover, .drop-card.dragover {
+            border-color: var(--accent);
+            background: #1c2128;
+            transform: translateY(-2px);
         }
 
         #fileInput { display: none; }
 
-        .btn-upload, .btn-resync {
-            background: var(--primary-color);
-            color: #000;
+        .btn-primary {
+            background: var(--accent);
+            color: white;
             padding: 12px 24px;
             border-radius: 8px;
-            font-weight: bold;
-            display: inline-block;
-            margin-top: 10px;
-            cursor: pointer;
+            font-weight: 600;
             border: none;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
-        .btn-resync {
-            background: #f59e0b;
-            display: none;
-            width: 100%;
-            max-width: 300px;
-        }
+        .btn-primary:hover { background: var(--accent-hover); }
 
-        #video-info {
-            font-size: 0.85em;
-            color: #94a3b8;
-            margin-bottom: 15px;
-            text-align: center;
-            padding: 0 10px;
-        }
-
-        #video-container {
+        /* Status & Controls */
+        #status-bar {
             width: 100%;
             max-width: 900px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            border-radius: 12px;
-            overflow: hidden;
-            background: #000;
-            /* iOS GPU Acceleration: Prevents crashes during UI rendering */
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
         }
 
-        .video-wrapper {
-            position: relative;
-            padding-top: 56.25%;
+        .file-name { color: var(--text-dim); font-style: italic; }
+
+        .btn-resync {
+            background: transparent;
+            border: 1px solid #30363d;
+            color: var(--text-dim);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+        }
+
+        .btn-resync:hover { color: white; border-color: var(--text-dim); }
+
+        /* Video Container */
+        #player-shelf {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            border: 1px solid #30363d;
+            background: #000;
+            display: none; /* Hidden until file loaded */
         }
 
         .video-js {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100% !important;
-            height: 100% !important;
+            width: 100%;
+            aspect-ratio: 16 / 9;
         }
 
-        /* Better mobile touch targets */
-        .vjs-big-play-button {
-            width: 2em !important;
-            height: 2em !important;
-            line-height: 2em !important;
-            border-radius: 50% !important;
-        }
+        /* Customizing VideoJS Fantasy Theme */
+        .vjs-theme-fantasy .vjs-play-progress { background-color: var(--accent); }
+        .vjs-theme-fantasy .vjs-control-bar { background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body>
 
-    <h1>🎬 PRO<b>STREAM</b></h1>
+    <header>
+        <h1>NovaPlayer</h1>
+        <p class="subtitle">Private, local playback without tracking.</p>
+    </header>
     
-    <div class="upload-container" id="dropZone">
-        <p>Select or Drag Video</p>
-        <label for="fileInput" class="btn-upload">Browse Files</label>
+    <div class="drop-card" id="dropZone">
+        <div id="drop-text">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:15px; opacity:0.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Drop a movie file here to start streaming</p>
+        </div>
+        <button class="btn-primary" onclick="document.getElementById('fileInput').click()">Select File</button>
         <input type="file" id="fileInput" accept="video/*">
     </div>
 
-    <div id="video-info">
-        <span>Ready for playback</span><br>
-        <button id="resyncBtn" class="btn-resync">🔊 Fix Audio / Resume</button>
+    <div id="status-bar">
+        <span class="file-name" id="fileNameDisplay">No file selected</span>
+        <button id="resyncBtn" class="btn-resync">Fix Audio Lag</button>
     </div>
 
-    <div id="video-container">
-        <div class="video-wrapper">
-            <video 
-                id="videoPlayer" 
-                class="video-js vjs-theme-city vjs-big-play-centered" 
-                controls 
-                preload="auto"
-                playsinline
-                webkit-playsinline
-                muted
-            >
-            </video>
-        </div>
+    <div id="player-shelf">
+        <video 
+            id="mainPlayer" 
+            class="video-js vjs-theme-fantasy vjs-big-play-centered" 
+            controls 
+            preload="auto"
+            playsinline
+        ></video>
     </div>
 
     <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
@@ -140,96 +168,86 @@
     <script>
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
-        const videoInfoSpan = document.querySelector('#video-info span');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
         const resyncBtn = document.getElementById('resyncBtn');
+        const playerShelf = document.getElementById('player-shelf');
         
-        const player = videojs('videoPlayer', {
-            playbackRates: [0.5, 1, 1.5, 2],
-            fluid: false,
-            responsive: true,
-            userActions: { hotkeys: true }
+        // Initialize Player
+        const player = videojs('mainPlayer', {
+            playbackRates: [0.5, 1, 1.25, 1.5, 2],
+            fluid: true,
+            responsive: true
         });
 
-        let currentVideoURL = null;
-        let lastTime = 0;
-        let activeFileName = "";
+        let currentFile = null;
+        let objectURL = null;
 
-        // 1. TRACK TIME (To resume after iOS reload)
-        player.on('timeupdate', () => {
-            if (player.currentTime() > 0) {
-                lastTime = player.currentTime();
-            }
-        });
-
-        // 2. AUTO-RECOVERY LOGIC
-        // If iOS purges memory, the player emits 'error' or 'emptied'
-        player.on(['error', 'emptied'], () => {
-            if (currentVideoURL && player.currentTime() === 0 && lastTime > 0) {
-                console.log("iOS Purge Detected. Attempting recovery...");
-                recoverPlayback();
-            }
-        });
-
-        function handleFile(file) {
-            if (!file || !file.type.startsWith('video/')) return;
-
-            activeFileName = file.name;
-            if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
-            currentVideoURL = URL.createObjectURL(file);
+        function loadVideo(file) {
+            if (!file) return;
             
-            player.src({ src: currentVideoURL, type: file.type });
+            currentFile = file;
             
-            resyncBtn.style.display = 'inline-block';
-            videoInfoSpan.innerHTML = `Loaded: <strong>${file.name}</strong>`;
+            // UI Updates
+            fileNameDisplay.textContent = `Streaming: ${file.name}`;
+            playerShelf.style.display = 'block';
+            resyncBtn.style.display = 'block';
+            dropZone.style.padding = '20px'; // Shrink dropzone once video is loaded
 
+            // Memory Management
+            if (objectURL) URL.revokeObjectURL(objectURL);
+            objectURL = URL.createObjectURL(file);
+
+            // Set Source
+            player.src({ type: file.type, src: objectURL });
+            
             player.ready(() => {
-                // On iOS, we start muted to ensure the reload doesn't block playback
-                player.muted(true);
-                player.play().catch(e => console.log("Manual play required"));
+                player.play().catch(() => {
+                    fileNameDisplay.textContent = "Click play to start (Autoplay blocked)";
+                });
             });
 
-            document.getElementById('video-container').scrollIntoView({ behavior: 'smooth' });
+            playerShelf.scrollIntoView({ behavior: 'smooth' });
         }
 
-        function recoverPlayback() {
-            player.src({ src: currentVideoURL, type: 'video/mp4' }); // Re-assign src
-            player.one('loadedmetadata', () => {
-                player.currentTime(lastTime);
-                player.play();
-                videoInfoSpan.innerHTML = `❤️ Recovered: <strong>${activeFileName}</strong>`;
-            });
-        }
-
-        // 3. MANUAL AUDIO RESTORE (iOS User Gesture)
+        // Logic Fix: A more robust Resync
+        // Instead of just pausing, we re-verify the source if the audio gets out of sync
         resyncBtn.addEventListener('click', () => {
-            player.muted(false);
-            player.volume(1.0);
-            
-            // Toggle play/pause to refresh the audio context
-            if (player.paused()) {
-                player.play();
-            }
+            const currentTime = player.currentTime();
+            const isPaused = player.paused();
 
-            resyncBtn.textContent = "🔊 Audio Active";
-            resyncBtn.style.background = "#10b981";
+            // Refresh the internal tech to clear buffer lag
+            player.pause();
+            player.currentTime(currentTime - 0.1); // Slight nudge back
             
-            setTimeout(() => { 
-                resyncBtn.textContent = "🔊 Fix Audio / Resume"; 
-                resyncBtn.style.background = "#f59e0b"; 
-            }, 2000);
+            setTimeout(() => {
+                if (!isPaused) player.play();
+                resyncBtn.textContent = "Resynced!";
+                setTimeout(() => resyncBtn.textContent = "Fix Audio Lag", 2000);
+            }, 100);
         });
 
-        // Event Listeners
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        // File Handlers
+        fileInput.addEventListener('change', (e) => loadVideo(e.target.files[0]));
+
+        dropZone.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            dropZone.classList.add('dragover'); 
+        });
+
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            handleFile(e.dataTransfer.files[0]);
+            if (e.dataTransfer.files.length) loadVideo(e.dataTransfer.files[0]);
         });
-        dropZone.addEventListener('click', (e) => {
-            if(e.target !== fileInput && e.target.tagName !== 'LABEL') fileInput.click();
+
+        // Global Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                player.paused() ? player.play() : player.pause();
+            }
         });
     </script>
 </body>
