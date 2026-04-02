@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>ProStream | Native UI Edition</title>
+    <title>ProStream | Native UI</title>
     
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     
@@ -12,19 +12,13 @@
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; margin: 0; }
         
         .upload-area { width: 100%; max-width: 800px; border: 2px dashed #334155; border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 30px; background: #1e293b; cursor: pointer; }
-        .player-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; display: none; background: #000; }
+        .player-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; display: none; background: #000; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
 
-        /* CRITICAL: This CSS hides the Plyr UI elements entirely 
-           to let the native <video controls> show through */
-        .plyr--full-ui.plyr--video .plyr__controls,
-        .plyr__control--overlaid {
-            display: none !important;
-        }
-        
-        /* Ensures the native video element is visible and interactive */
-        video {
-            width: 100%;
-            height: auto;
+        /* Ensure the video occupies the full container */
+        video { width: 100%; display: block; }
+
+        /* FIX: Ensure the native iOS play button is visible and tappable */
+        .plyr--ios-native .plyr__video-wrapper {
             display: block !important;
         }
     </style>
@@ -50,14 +44,14 @@
         const playerContainer = document.getElementById('playerContainer');
         const videoElement = document.getElementById('player');
 
-        // Initialize Plyr in "Native" mode
+        // Initialize Plyr
         const player = new Plyr('#player', {
-            // Tells Plyr NOT to use its custom UI on iPhone/iPad
+            // This allows the native iOS player to take over the UI
             iosNative: true,
-            // Disable Plyr's custom click-to-play so it doesn't conflict with native tap
-            clickToPlay: false, 
-            // Hide tooltips
-            tooltips: { controls: false }
+            // Keeps the big play button in the middle for Desktop/Android
+            tooltips: { controls: true },
+            // Prevents Plyr from overriding native touch gestures
+            clickToPlay: true 
         });
 
         let currentUrl = null;
@@ -70,29 +64,35 @@
             if (currentUrl) URL.revokeObjectURL(currentUrl);
             currentUrl = URL.createObjectURL(file);
 
-            // Let Plyr handle the "Source" logic (loading, type checking)
+            // Update Plyr source
             player.source = {
                 type: 'video',
                 sources: [{ src: currentUrl, type: file.type }]
             };
 
-            // Android/iOS native players usually need a manual play call
-            videoElement.play();
-            
-            // To force Fullscreen on mobile devices immediately:
-            if (videoElement.webkitEnterFullscreen) {
-                videoElement.webkitEnterFullscreen(); // iOS
-            } else if (videoElement.requestFullscreen) {
-                videoElement.requestFullscreen(); // Android
-            }
+            // Scroll to the player so you can see the play button
+            playerContainer.scrollIntoView({ behavior: 'smooth' });
+
+            // Note: We do NOT auto-trigger fullscreen here anymore.
+            // This allows you to see the Play button first.
+            // Once you tap Play, the native iOS/Android player will handle the rest.
         }
 
+        // Listeners
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-        dropZone.addEventListener('dragover', (e) => e.preventDefault());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = "#2d3748"; });
+        dropZone.addEventListener('dragleave', () => dropZone.style.background = "#1e293b");
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             handleFile(e.dataTransfer.files[0]);
+        });
+
+        // OPTIONAL: If you want it to go fullscreen ONLY AFTER you press play
+        player.on('play', () => {
+            if (videoElement.webkitEnterFullscreen) {
+                videoElement.webkitEnterFullscreen(); // For iPhone
+            }
         });
     </script>
 </body>
