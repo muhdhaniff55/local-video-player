@@ -2,187 +2,137 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LocalStream Pro | Control Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProStream | Plyr Edition</title>
     
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     
     <style>
         :root {
-            --primary: #7c3aed; 
-            --glass: rgba(15, 23, 42, 0.9);
-            --border: rgba(255, 255, 255, 0.1);
-            --plyr-color-main: #7c3aed;
+            --plyr-color-main: #6366f1;
+            --bg-dark: #0f172a;
         }
 
         body {
-            font-family: -apple-system, system-ui, sans-serif;
-            background: radial-gradient(circle at top, #1e1b4b 0%, #020617 100%);
-            color: #f8fafc;
-            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
-            padding: 15px;
-            touch-action: manipulation;
+            padding: 40px 20px;
+            margin: 0;
         }
 
-        h1 { font-size: 1.6rem; background: linear-gradient(to right, #a78bfa, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 15px 0; font-weight: 800; }
-
-        .upload-container {
+        .upload-area {
             width: 100%;
-            max-width: 450px;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 35px 20px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .btn-upload { background: var(--primary); padding: 12px 24px; border-radius: 10px; font-weight: 600; display: inline-block; margin-top: 10px; cursor: pointer; border: none; color: white; }
-
-        .player-wrapper {
-            width: 100%;
-            max-width: 900px;
+            max-width: 800px;
+            border: 2px dashed #334155;
             border-radius: 16px;
-            overflow: hidden;
-            background: #000;
-            display: none; 
-            position: relative;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-        }
-
-        /* Seek Overlay for Gestures */
-        .gesture-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 75%;
-            z-index: 2;
-            display: flex;
-        }
-        .tap-zone { flex: 1; height: 100%; }
-
-        /* Custom Seek Buttons at Bottom */
-        .custom-controls {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 15px;
-            width: 100%;
-        }
-
-        .seek-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid var(--border);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.2s;
-        }
-        .seek-btn:active { background: var(--primary); }
-
-        #file-info {
-            margin-top: 15px;
-            padding: 12px;
-            background: rgba(124, 58, 237, 0.1);
-            border: 1px solid rgba(124, 58, 237, 0.2);
-            border-radius: 12px;
-            width: 100%;
-            max-width: 450px;
-            word-wrap: break-word;
+            padding: 30px;
             text-align: center;
-            font-size: 0.85rem;
+            margin-bottom: 30px;
+            background: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-area:hover { border-color: var(--plyr-color-main); }
+
+        .player-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
             display: none;
         }
 
         #fileInput { display: none; }
+        
+        .status-pill {
+            background: #334155;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        /* Essential CSS to ensure iOS native controls show up properly */
+        .plyr--ios-native video {
+            display: block !important;
+        }
     </style>
 </head>
 <body>
 
-    <h1>LocalStream Pro</h1>
-    
-    <div class="upload-container" id="dropZone">
-        <p style="margin:0 0 5px 0">Ready for your movie</p>
-        <button class="btn-upload">Select Video</button>
+    <h1>ProStream</h1>
+
+    <div class="upload-area" id="dropZone">
+        <p>Drag your video file here or click to browse</p>
         <input type="file" id="fileInput" accept="video/*">
+        <button style="background: var(--plyr-color-main); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+            Select Local File
+        </button>
     </div>
 
-    <div class="player-wrapper" id="playerWrapper">
-        <div class="gesture-overlay">
-            <div class="tap-zone" id="tapLeft"></div>
-            <div class="tap-zone" id="tapRight"></div>
-        </div>
-        <video id="player" playsinline controls></video>
-    </div>
+    <div id="status" class="status-pill"></div>
 
-    <div class="custom-controls" id="extraControls" style="display:none;">
-        <button class="seek-btn" id="btnBack">⏪ 10s</button>
-        <button class="seek-btn" id="btnForward">10s ⏩</button>
+    <div class="player-container" id="playerContainer">
+        <video id="player" playsinline controls>
+        </video>
     </div>
-
-    <div id="file-info"></div>
 
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
     <script>
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
-        const playerWrapper = document.getElementById('playerWrapper');
-        const extraControls = document.getElementById('extraControls');
-        const fileInfo = document.getElementById('file-info');
+        const playerContainer = document.getElementById('playerContainer');
+        const status = document.getElementById('status');
         
+        // Key Change: Adding the iosNative configuration
         const player = new Plyr('#player', {
-            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'fullscreen'],
-            seekTime: 10
+            tooltips: { controls: true, seek: true },
+            keyboard: { focused: true, global: true },
+            // forces the native UI on iOS devices
+            iosNative: true 
         });
 
         let currentUrl = null;
-        let lastTap = 0;
 
         function handleFile(file) {
             if (!file) return;
+
+            playerContainer.style.display = 'block';
+            status.style.display = 'inline-block';
+            status.innerHTML = `🎥 Playing: <strong>${file.name}</strong>`;
+
             if (currentUrl) URL.revokeObjectURL(currentUrl);
             currentUrl = URL.createObjectURL(file);
-            
-            player.source = { type: 'video', sources: [{ src: currentUrl, type: file.type }] };
-            
-            playerWrapper.style.display = 'block';
-            extraControls.style.display = 'flex';
-            fileInfo.style.display = 'block';
-            fileInfo.innerHTML = `Watching: <strong>${file.name}</strong>`;
-            
+
+            player.source = {
+                type: 'video',
+                sources: [{ src: currentUrl, type: file.type }]
+            };
+
             player.play();
+            playerContainer.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // 1. PHYSICAL BUTTON LOGIC
-        document.getElementById('btnBack').onclick = () => player.rewind(10);
-        document.getElementById('btnForward').onclick = () => player.forward(10);
-
-        // 2. DOUBLE TAP LOGIC (Keeping it as requested)
-        const handleDoubleTap = (side) => {
-            const now = Date.now();
-            if (now - lastTap < 300) {
-                side === 'L' ? player.rewind(10) : player.forward(10);
-            }
-            lastTap = now;
-        };
-
-        document.getElementById('tapLeft').onclick = () => handleDoubleTap('L');
-        document.getElementById('tapRight').onclick = () => handleDoubleTap('R');
-
-        // Setup
-        dropZone.onclick = () => fileInput.click();
-        fileInput.onchange = e => handleFile(e.target.files[0]);
-        dropZone.ondragover = e => e.preventDefault();
-        dropZone.ondrop = e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        
+        dropZone.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            dropZone.style.background = "#2d3748"; 
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.style.background = "#1e293b");
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            handleFile(e.dataTransfer.files[0]);
+        });
     </script>
 </body>
 </html>
