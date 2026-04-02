@@ -2,65 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProStream | Plyr Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ProStream | Native UI Edition</title>
     
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     
     <style>
-        :root {
-            --plyr-color-main: #6366f1;
-            --bg-dark: #0f172a;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
-            margin: 0;
-        }
-
-        .upload-area {
-            width: 100%;
-            max-width: 800px;
-            border: 2px dashed #334155;
-            border-radius: 16px;
-            padding: 30px;
-            text-align: center;
-            margin-bottom: 30px;
-            background: #1e293b;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .upload-area:hover { border-color: var(--plyr-color-main); }
-
-        .player-container {
-            width: 100%;
-            max-width: 1000px;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            display: none;
-        }
-
-        #fileInput { display: none; }
+        :root { --bg-dark: #0f172a; --plyr-color-main: #6366f1; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; margin: 0; }
         
-        .status-pill {
-            background: #334155;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            margin-bottom: 15px;
-            display: none;
-        }
+        .upload-area { width: 100%; max-width: 800px; border: 2px dashed #334155; border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 30px; background: #1e293b; cursor: pointer; }
+        .player-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; display: none; background: #000; }
 
-        /* Essential CSS to ensure iOS native controls show up properly */
-        .plyr--ios-native video {
+        /* CRITICAL: This CSS hides the Plyr UI elements entirely 
+           to let the native <video controls> show through */
+        .plyr--full-ui.plyr--video .plyr__controls,
+        .plyr__control--overlaid {
+            display: none !important;
+        }
+        
+        /* Ensures the native video element is visible and interactive */
+        video {
+            width: 100%;
+            height: auto;
             display: block !important;
         }
     </style>
@@ -70,18 +34,12 @@
     <h1>ProStream</h1>
 
     <div class="upload-area" id="dropZone">
-        <p>Drag your video file here or click to browse</p>
+        <p>Tap to select or Drag video here</p>
         <input type="file" id="fileInput" accept="video/*">
-        <button style="background: var(--plyr-color-main); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-            Select Local File
-        </button>
     </div>
 
-    <div id="status" class="status-pill"></div>
-
     <div class="player-container" id="playerContainer">
-        <video id="player" playsinline controls>
-        </video>
+        <video id="player" playsinline controls></video>
     </div>
 
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
@@ -90,14 +48,16 @@
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const playerContainer = document.getElementById('playerContainer');
-        const status = document.getElementById('status');
-        
-        // Key Change: Adding the iosNative configuration
+        const videoElement = document.getElementById('player');
+
+        // Initialize Plyr in "Native" mode
         const player = new Plyr('#player', {
-            tooltips: { controls: true, seek: true },
-            keyboard: { focused: true, global: true },
-            // forces the native UI on iOS devices
-            iosNative: true 
+            // Tells Plyr NOT to use its custom UI on iPhone/iPad
+            iosNative: true,
+            // Disable Plyr's custom click-to-play so it doesn't conflict with native tap
+            clickToPlay: false, 
+            // Hide tooltips
+            tooltips: { controls: false }
         });
 
         let currentUrl = null;
@@ -106,29 +66,30 @@
             if (!file) return;
 
             playerContainer.style.display = 'block';
-            status.style.display = 'inline-block';
-            status.innerHTML = `🎥 Playing: <strong>${file.name}</strong>`;
-
+            
             if (currentUrl) URL.revokeObjectURL(currentUrl);
             currentUrl = URL.createObjectURL(file);
 
+            // Let Plyr handle the "Source" logic (loading, type checking)
             player.source = {
                 type: 'video',
                 sources: [{ src: currentUrl, type: file.type }]
             };
 
-            player.play();
-            playerContainer.scrollIntoView({ behavior: 'smooth' });
+            // Android/iOS native players usually need a manual play call
+            videoElement.play();
+            
+            // To force Fullscreen on mobile devices immediately:
+            if (videoElement.webkitEnterFullscreen) {
+                videoElement.webkitEnterFullscreen(); // iOS
+            } else if (videoElement.requestFullscreen) {
+                videoElement.requestFullscreen(); // Android
+            }
         }
 
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-        
-        dropZone.addEventListener('dragover', (e) => { 
-            e.preventDefault(); 
-            dropZone.style.background = "#2d3748"; 
-        });
-        dropZone.addEventListener('dragleave', () => dropZone.style.background = "#1e293b");
+        dropZone.addEventListener('dragover', (e) => e.preventDefault());
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             handleFile(e.dataTransfer.files[0]);
