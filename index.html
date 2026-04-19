@@ -30,7 +30,6 @@
             padding: 20px;
         }
 
-        /* Clean Header */
         header {
             text-align: center;
             margin: 40px 0;
@@ -50,7 +49,6 @@
             margin-top: 8px;
         }
 
-        /* Upload Area */
         .drop-card {
             width: 100%;
             max-width: 800px;
@@ -85,7 +83,6 @@
 
         .btn-primary:hover { background: var(--accent-hover); }
 
-        /* Status & Controls */
         #status-bar {
             width: 100%;
             max-width: 900px;
@@ -110,7 +107,6 @@
 
         .btn-resync:hover { color: white; border-color: var(--text-dim); }
 
-        /* Video Container */
         #player-shelf {
             width: 100%;
             max-width: 1000px;
@@ -119,7 +115,7 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
             border: 1px solid #30363d;
             background: #000;
-            display: none; /* Hidden until file loaded */
+            display: none; 
         }
 
         .video-js {
@@ -127,7 +123,6 @@
             aspect-ratio: 16 / 9;
         }
 
-        /* Customizing VideoJS Fantasy Theme */
         .vjs-theme-fantasy .vjs-play-progress { background-color: var(--accent); }
         .vjs-theme-fantasy .vjs-control-bar { background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(10px); }
     </style>
@@ -158,8 +153,9 @@
             id="mainPlayer" 
             class="video-js vjs-theme-fantasy vjs-big-play-centered" 
             controls 
-            preload="auto"
+            preload="metadata"
             playsinline
+            muted
         ></video>
     </div>
 
@@ -172,7 +168,6 @@
         const resyncBtn = document.getElementById('resyncBtn');
         const playerShelf = document.getElementById('player-shelf');
         
-        // Initialize Player
         const player = videojs('mainPlayer', {
             playbackRates: [0.5, 1, 1.25, 1.5, 2],
             fluid: true,
@@ -187,17 +182,14 @@
             
             currentFile = file;
             
-            // UI Updates
             fileNameDisplay.textContent = `Streaming: ${file.name}`;
             playerShelf.style.display = 'block';
             resyncBtn.style.display = 'block';
-            dropZone.style.padding = '20px'; // Shrink dropzone once video is loaded
+            dropZone.style.padding = '20px'; 
 
-            // Memory Management
             if (objectURL) URL.revokeObjectURL(objectURL);
             objectURL = URL.createObjectURL(file);
 
-            // Set Source
             player.src({ type: file.type, src: objectURL });
             
             player.ready(() => {
@@ -209,15 +201,12 @@
             playerShelf.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Logic Fix: A more robust Resync
-        // Instead of just pausing, we re-verify the source if the audio gets out of sync
         resyncBtn.addEventListener('click', () => {
             const currentTime = player.currentTime();
             const isPaused = player.paused();
 
-            // Refresh the internal tech to clear buffer lag
             player.pause();
-            player.currentTime(currentTime - 0.1); // Slight nudge back
+            player.currentTime(currentTime - 0.1); 
             
             setTimeout(() => {
                 if (!isPaused) player.play();
@@ -226,7 +215,6 @@
             }, 100);
         });
 
-        // File Handlers
         fileInput.addEventListener('change', (e) => loadVideo(e.target.files[0]));
 
         dropZone.addEventListener('dragover', (e) => { 
@@ -242,7 +230,6 @@
             if (e.dataTransfer.files.length) loadVideo(e.dataTransfer.files[0]);
         });
 
-        // Global Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault();
