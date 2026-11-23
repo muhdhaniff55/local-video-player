@@ -414,10 +414,13 @@
             const errors = [];
             for (const url of CDN_FALLBACKS) {
                 try {
-                    lib = await import(url);
-                    if (lib && lib.render) return lib;
-                    errors.push(`${url}: no render export`);
-                    lib = null;
+                    const m = await import(url);
+                    // Resolve exports whether they're named, under `default`, or nested
+                    const candidates = [m, m.default, m.default && m.default.default];
+                    const api = candidates.find(c => c && typeof c.render === 'function');
+                    if (api) { lib = api; return lib; }
+                    const keys = Object.keys(m).concat(m.default ? Object.keys(m.default).map(k => 'default.' + k) : []);
+                    errors.push(`${url}: no render export; found [${keys.slice(0, 12).join(', ')}]`);
                 } catch (e) {
                     errors.push(`${url}: ${e && e.message}`);
                 }
