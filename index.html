@@ -85,10 +85,12 @@
 
         #status-bar {
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
             margin-bottom: 12px;
             font-size: 0.9rem;
         }
@@ -106,6 +108,100 @@
         }
 
         .btn-resync:hover { color: white; border-color: var(--text-dim); }
+
+        /* ---------- Anime4K enhance card (lives on the page, not in the player) ---------- */
+        #enhance-card {
+            width: 100%;
+            max-width: 1000px;
+            box-sizing: border-box;
+            background: var(--surface);
+            border: 1px solid #30363d;
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            display: none;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .enhance-info { display: flex; flex-direction: column; gap: 2px; }
+        .enhance-title { font-weight: 600; }
+        .enhance-sub { color: var(--text-dim); font-size: 0.8rem; }
+
+        .enhance-controls { display: flex; align-items: center; gap: 12px; }
+
+        .enhance-desc {
+            flex-basis: 100%;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            line-height: 1.5;
+            border-top: 1px solid #30363d;
+            padding-top: 10px;
+        }
+
+        #modeSelect {
+            background: var(--bg);
+            color: var(--text-main);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 0.85rem;
+        }
+
+        .switch { position: relative; width: 46px; height: 26px; display: inline-block; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; inset: 0;
+            background: #30363d;
+            border-radius: 26px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .slider::before {
+            content: "";
+            position: absolute;
+            height: 20px; width: 20px;
+            left: 3px; top: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .switch input:checked + .slider { background: var(--accent); }
+        .switch input:checked + .slider::before { transform: translateX(20px); }
+        .switch input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
+
+        #enhance-panel {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid #30363d;
+            background: #000;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            margin-bottom: 20px;
+            display: none;
+            position: relative;
+        }
+
+        #enhance-panel canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .enhance-badge {
+            position: absolute;
+            top: 10px; left: 10px;
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(6px);
+            border: 1px solid #30363d;
+            color: var(--text-main);
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
 
         #player-shelf {
             width: 100%;
@@ -148,6 +244,33 @@
         <button id="resyncBtn" class="btn-resync">Fix Audio Lag</button>
     </div>
 
+    <!-- Anime4K toggle (page-level, outside the player) -->
+    <div id="enhance-card">
+        <div class="enhance-info">
+            <span class="enhance-title">Anime4K Upscaler</span>
+            <span class="enhance-sub" id="enhanceStatus">Sharpens &amp; upscales 2x using WebGPU</span>
+        </div>
+        <div class="enhance-controls">
+            <select id="modeSelect" title="Anime4K preset">
+                <option value="ModeA">Mode A (balanced)</option>
+                <option value="ModeB">Mode B (soft sources)</option>
+                <option value="ModeC">Mode C (denoise)</option>
+                <option value="ModeAA">Mode A+A (high)</option>
+                <option value="ModeBB">Mode B+B (high)</option>
+                <option value="ModeCA">Mode C+A (high)</option>
+            </select>
+            <label class="switch" title="Toggle Anime4K upscaling">
+                <input type="checkbox" id="enhanceToggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="enhance-desc" id="modeDesc"></div>
+    </div>
+
+    <div id="enhance-panel">
+        <span class="enhance-badge">Anime4K enhanced · audio &amp; controls from player below</span>
+    </div>
+
     <div id="player-shelf">
         <video 
             id="mainPlayer" 
@@ -167,6 +290,7 @@
         const fileNameDisplay = document.getElementById('fileNameDisplay');
         const resyncBtn = document.getElementById('resyncBtn');
         const playerShelf = document.getElementById('player-shelf');
+        const enhanceCard = document.getElementById('enhance-card');
         
         const player = videojs('mainPlayer', {
             playbackRates: [0.5, 1, 1.25, 1.5, 2],
@@ -185,6 +309,7 @@
             fileNameDisplay.textContent = `Streaming: ${file.name}`;
             playerShelf.style.display = 'block';
             resyncBtn.style.display = 'block';
+            enhanceCard.style.display = 'flex';
             dropZone.style.padding = '20px'; 
 
             if (objectURL) URL.revokeObjectURL(objectURL);
@@ -236,6 +361,128 @@
                 player.paused() ? player.play() : player.pause();
             }
         });
+    </script>
+
+    <!-- Anime4K (WebGPU) upscaler: separate canvas on the page, fed by the player's video element -->
+    <script type="module">
+        const toggle = document.getElementById('enhanceToggle');
+        const modeSelect = document.getElementById('modeSelect');
+        const statusEl = document.getElementById('enhanceStatus');
+        const panel = document.getElementById('enhance-panel');
+
+        const ANIME4K_URL = 'https://cdn.jsdelivr.net/npm/anime4k-webgpu@1.0.0/+esm';
+        const MAX_OUTPUT_WIDTH = 2560; // keeps memory/GPU use sane on phones & tablets
+
+        let lib = null;
+        let canvas = null;
+        let session = 0;   // bumps on every (re)start so stale async work is ignored
+        let started = false;
+
+        function getVideoEl() {
+            return player.el().querySelector('video');
+        }
+
+        function setStatus(msg) { statusEl.textContent = msg; }
+
+        const MODE_INFO = {
+            ModeA: '<b>Mode A – Balanced.</b> Best all-rounder for clean 1080p anime. Fixes slight blur, then upscales.',
+            ModeB: '<b>Mode B – Soft sources.</b> For blurry or low-res video (e.g. 720p or scaled-up). Restores softness more strongly, then upscales.',
+            ModeC: '<b>Mode C – Denoise.</b> For noisy or grainy video. Removes noise and upscales without much sharpening, so it looks cleaner and smoother.',
+            ModeAA: '<b>Mode A+A – High quality.</b> Mode A with an extra restore pass. Sharper, but heavier on the GPU.',
+            ModeBB: '<b>Mode B+B – High quality.</b> Mode B with an extra restore pass. Best for very soft video, but heavier on the GPU.',
+            ModeCA: '<b>Mode C+A – High quality.</b> Denoise first, then sharpen and upscale. Best for noisy video, but heaviest on the GPU.'
+        };
+        const modeDesc = document.getElementById('modeDesc');
+        function showModeDesc() { modeDesc.innerHTML = MODE_INFO[modeSelect.value] || ''; }
+        modeSelect.addEventListener('change', showModeDesc);
+        showModeDesc();
+
+        if (!('gpu' in navigator)) {
+            toggle.disabled = true;
+            modeSelect.disabled = true;
+            setStatus('WebGPU not supported on this browser/device (iOS needs 26+)');
+        }
+
+        async function ensureLib() {
+            if (!lib) lib = await import(ANIME4K_URL);
+            return lib;
+        }
+
+        function teardown() {
+            session++;
+            started = false;
+            if (canvas) { canvas.remove(); canvas = null; }
+        }
+
+        async function start() {
+            const video = getVideoEl();
+            if (!video || !video.videoWidth) { setStatus('Waiting for video to load…'); return; }
+
+            const mySession = ++session;
+            teardown_canvasOnly();
+            setStatus('Starting…');
+
+            try {
+                const mod = await ensureLib();
+                if (mySession !== session) return;
+
+                const scale = Math.min(2, MAX_OUTPUT_WIDTH / video.videoWidth);
+                const nativeW = video.videoWidth, nativeH = video.videoHeight;
+
+                // Fresh canvas each time (a WebGPU canvas can't be cleanly re-bound)
+                canvas = document.createElement('canvas');
+                canvas.width = Math.round(nativeW * scale);
+                canvas.height = Math.round(nativeH * scale);
+                panel.appendChild(canvas);
+
+                const Preset = mod[modeSelect.value] || mod.ModeA;
+
+                await mod.render({
+                    video,
+                    canvas,
+                    pipelineBuilder: (device, inputTexture) => {
+                        const preset = new Preset({
+                            device,
+                            inputTexture,
+                            nativeDimensions: { width: nativeW, height: nativeH },
+                            targetDimensions: { width: canvas.width, height: canvas.height },
+                        });
+                        return [preset];
+                    },
+                });
+
+                if (mySession !== session) return;
+                started = true;
+                setStatus(`Active · ${nativeW}×${nativeH} → ${canvas.width}×${canvas.height}`);
+            } catch (err) {
+                console.error('Anime4K failed:', err);
+                toggle.checked = false;
+                panel.style.display = 'none';
+                setStatus('Could not start WebGPU upscaler');
+            }
+        }
+
+        function teardown_canvasOnly() {
+            if (canvas) { canvas.remove(); canvas = null; }
+            started = false;
+        }
+
+        toggle.addEventListener('change', () => {
+            if (toggle.checked) {
+                panel.style.display = 'block';
+                start();
+            } else {
+                panel.style.display = 'none';
+                teardown();
+                setStatus('Sharpens & upscales 2x using WebGPU');
+            }
+        });
+
+        // Changing preset restarts the pipeline
+        modeSelect.addEventListener('change', () => { if (toggle.checked) start(); });
+
+        // New file loaded -> rebuild at the new resolution if the toggle is on
+        player.on('loadedmetadata', () => { if (toggle.checked) start(); });
     </script>
 </body>
 </html>
