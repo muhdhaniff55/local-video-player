@@ -403,9 +403,32 @@
             setStatus('WebGPU not supported on this browser/device (iOS needs 26+)');
         }
 
+        const CDN_FALLBACKS = [
+            ANIME4K_URL,
+            'https://esm.sh/anime4k-webgpu@1.0.0',
+            'https://unpkg.com/anime4k-webgpu@1.0.0?module'
+        ];
+
         async function ensureLib() {
-            if (!lib) lib = await import(ANIME4K_URL);
-            return lib;
+            if (lib) return lib;
+            const errors = [];
+            for (const url of CDN_FALLBACKS) {
+                try {
+                    lib = await import(url);
+                    if (lib && lib.render) return lib;
+                    errors.push(`${url}: no render export`);
+                    lib = null;
+                } catch (e) {
+                    errors.push(`${url}: ${e && e.message}`);
+                }
+            }
+            throw new Error('Could not load Anime4K library (' + errors.join(' | ') + ')');
+        }
+
+        async function checkWebGPU() {
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) throw new Error('No WebGPU adapter available on this device');
+            return adapter;
         }
 
         function teardown() {
@@ -423,6 +446,7 @@
             setStatus('Starting…');
 
             try {
+                await checkWebGPU();
                 const mod = await ensureLib();
                 if (mySession !== session) return;
 
@@ -458,7 +482,7 @@
                 console.error('Anime4K failed:', err);
                 toggle.checked = false;
                 panel.style.display = 'none';
-                setStatus('Could not start WebGPU upscaler');
+                setStatus('Error: ' + ((err && err.message) || err));
             }
         }
 
