@@ -172,6 +172,22 @@
         .switch input:checked + .slider::before { transform: translateX(20px); }
         .switch input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
 
+        /* Upscaled canvas sits on top of the video picture; player controls stay usable above it */
+        .video-js canvas.anime4k-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .video-js.anime4k-on video.vjs-tech { opacity: 0; }
+        .video-js.anime4k-on .vjs-control-bar,
+        .video-js.anime4k-on .vjs-big-play-button,
+        .video-js.anime4k-on .vjs-loading-spinner { z-index: 3; }
+
         #enhance-panel {
             width: 100%;
             max-width: 1000px;
@@ -265,10 +281,6 @@
             </label>
         </div>
         <div class="enhance-desc" id="modeDesc"></div>
-    </div>
-
-    <div id="enhance-panel">
-        <span class="enhance-badge">Anime4K enhanced · audio &amp; controls from player below</span>
     </div>
 
     <div id="player-shelf">
@@ -368,7 +380,6 @@
         const toggle = document.getElementById('enhanceToggle');
         const modeSelect = document.getElementById('modeSelect');
         const statusEl = document.getElementById('enhanceStatus');
-        const panel = document.getElementById('enhance-panel');
 
         const ANIME4K_URL = 'https://cdn.jsdelivr.net/npm/anime4k-webgpu@1.0.0/+esm';
         const MAX_OUTPUT_WIDTH = 2560; // keeps memory/GPU use sane on phones & tablets
@@ -438,6 +449,7 @@
             session++;
             started = false;
             if (canvas) { canvas.remove(); canvas = null; }
+            player.removeClass('anime4k-on');
         }
 
         async function start() {
@@ -446,6 +458,7 @@
 
             const mySession = ++session;
             teardown_canvasOnly();
+            player.removeClass('anime4k-on');
             setStatus('Starting…');
 
             try {
@@ -453,14 +466,23 @@
                 const mod = await ensureLib();
                 if (mySession !== session) return;
 
-                const scale = Math.min(2, MAX_OUTPUT_WIDTH / video.videoWidth);
                 const nativeW = video.videoWidth, nativeH = video.videoHeight;
+
+                // Only render as many pixels as the screen can actually show (big lag saver).
+                // Never go below native size, never above 2x.
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                const displayW = Math.round(player.el().clientWidth * dpr);
+                let scale = Math.min(2, Math.max(1, displayW / nativeW));
+                scale = Math.min(scale, MAX_OUTPUT_WIDTH / nativeW);
+                scale = Math.max(scale, 1);
 
                 // Fresh canvas each time (a WebGPU canvas can't be cleanly re-bound)
                 canvas = document.createElement('canvas');
+                canvas.className = 'anime4k-canvas';
                 canvas.width = Math.round(nativeW * scale);
                 canvas.height = Math.round(nativeH * scale);
-                panel.appendChild(canvas);
+                player.el().appendChild(canvas);
+                player.addClass('anime4k-on');
 
                 const Preset = mod[modeSelect.value] || mod.ModeA;
 
@@ -484,7 +506,7 @@
             } catch (err) {
                 console.error('Anime4K failed:', err);
                 toggle.checked = false;
-                panel.style.display = 'none';
+                teardown();
                 setStatus('Error: ' + ((err && err.message) || err));
             }
         }
@@ -496,10 +518,8 @@
 
         toggle.addEventListener('change', () => {
             if (toggle.checked) {
-                panel.style.display = 'block';
                 start();
             } else {
-                panel.style.display = 'none';
                 teardown();
                 setStatus('Sharpens & upscales 2x using WebGPU');
             }
